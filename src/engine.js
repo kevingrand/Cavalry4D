@@ -104,9 +104,29 @@
       return Engine._addFieldViaCombiner(fieldId, effectorId, clonerId);
     },
 
+    // Find which duplicator XFORM channels are currently driven by `effectorId`.
+    _drivenChannels: function (effectorId, clonerId) {
+      var out = [];
+      var xf = TM().XFORM;
+      for (var name in xf) {
+        if (xf.hasOwnProperty(name) && api.getInConnection(clonerId, xf[name]) === effectorId) out.push(xf[name]);
+      }
+      return out;
+    },
+
     _addFieldViaCombiner: function (fieldId, effectorId, clonerId) {
-      Engine.warnings.push("combiner path not yet implemented");
-      return { fieldId: fieldId, extraIds: [] };
+      var channels = Engine._drivenChannels(effectorId, clonerId);
+      var extra = [];
+      for (var i = 0; i < channels.length; i++) {
+        var attr = channels[i];
+        var combo = Engine._create("math", Engine._nextName("Field Mix"));
+        api.set(combo, { "operation": "multiply" });   // verify operation attr/value live
+        Engine._wire(effectorId, "id", combo, "value");
+        Engine._wire(fieldId, "id", combo, "second");
+        Engine._wire(combo, "id", clonerId, attr);      // replaces the direct effector input
+        extra.push(combo);
+      }
+      return { fieldId: fieldId, extraIds: extra };
     }
   };
 

@@ -41,3 +41,20 @@ test("addField on a non-effector layer warns and wires nothing", () => {
   assert.ok(Engine.warnings.some(function (w) { return w.indexOf("unknown effector") >= 0; }));
   assert.equal(api.getInConnection(notEffector, "falloffs.0.id"), "");
 });
+
+test("a field on a Random effector inserts a multiply combiner per driven channel", () => {
+  global.api = makeApi(); global.cavalry = makeCavalry(); Engine.resetWarnings();
+  const shape = global.api.create("basicShape", "Box");
+  const { clonerId } = Engine.createCloner("grid", [shape]);
+  const { effectorId } = Engine.addEffector("random", clonerId, { position: false, scale: false, rotation: true });
+  const api = global.api;
+
+  const res = Engine.addField("spherical", effectorId, clonerId);
+  assert.equal(res.extraIds.length, 1);                          // one combiner for the one driven channel
+  const combo = res.extraIds[0];
+  assert.equal(api.getLayerType(combo), "math");
+  assert.equal(api.getInConnection(clonerId, "shapeRotation"), combo);  // duplicator now driven by the combiner
+  assert.equal(api.getInConnection(combo, "value"), effectorId);        // random into the combiner
+  assert.equal(api.getInConnection(combo, "second"), res.fieldId);      // field into the combiner
+  assert.equal(Engine.warnings.length, 0);
+});

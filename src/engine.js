@@ -8,6 +8,9 @@
   if (typeof require !== "undefined") { try { require("./typemap"); } catch (e) {} }
 
   function TM() { return root.MG.TypeMap; }
+  // Cavalry's getInConnection/getOutConnections return "layer.attr" (e.g.
+  // "random#1.id", "duplicator#2.shapeScale"); reduce to the layer id.
+  function layerOf(s) { return s ? String(s).split(".")[0] : ""; }
   var counters = {};
 
   var Engine = {
@@ -25,15 +28,15 @@
       return id;
     },
 
-    // connect then verify; record a warning on silent failure
+    // connect then verify from the SOURCE side via getOutConnections — robust to
+    // list / auto-indexed target slots (e.g. "falloffs") that getInConnection on
+    // the named target doesn't report. Warn on silent failure.
     _wire: function (fromId, fromAttr, toId, toAttr) {
       api.connect(fromId, fromAttr, toId, toAttr);
-      var got = api.getInConnection(toId, toAttr);
-      if (got !== fromId) {
-        Engine.warnings.push("wire failed: " + fromId + "." + fromAttr + " -> " + toId + "." + toAttr + " (got '" + got + "')");
-        return false;
-      }
-      return true;
+      var outs = api.getOutConnections(fromId, fromAttr);
+      for (var i = 0; i < outs.length; i++) if (layerOf(outs[i]) === toId) return true;
+      Engine.warnings.push("wire failed: " + fromId + "." + fromAttr + " -> " + toId + "." + toAttr);
+      return false;
     },
 
     createCloner: function (mode, selectionIds) {
@@ -42,8 +45,14 @@
       var clonerId = Engine._create("duplicator", Engine._nextName("Cloner"));
       api.setGenerator(clonerId, TM().paths.generatorAttr, spec.distribution);
       if (spec.configure) spec.configure(api, clonerId);
-      var src = (selectionIds && selectionIds[0]) || null;
-      if (src) Engine._wire(src, "id", clonerId, TM().paths.shapeInput);
+      // A Duplicator clones its CHILDREN — parent the selection in (connecting to
+      // a "shapes" input does not work in Cavalry).
+      if (selectionIds) {
+        for (var i = 0; i < selectionIds.length; i++) {
+          api.parent(selectionIds[i], clonerId);
+          if (api.getParent(selectionIds[i]) !== clonerId) Engine.warnings.push("cloner: failed to parent " + selectionIds[i] + " -> " + clonerId);
+        }
+      }
       return { clonerId: clonerId };
     },
 
@@ -84,6 +93,11 @@
       }
     },
 
+    // A field attaches to the effector's "falloffs" list (verified live: random,
+    // value and stagger all expose it, and a field there attenuates the whole
+    // effector spatially). Effectors with no falloffs input (Shader/colorArray)
+    // have fieldSlot null -> field is refused with a warning, no orphan left.
+    // clonerId is accepted for signature stability but unused.
     addField: function (fieldType, effectorId, clonerId) {
       var fSpec = TM().fields[fieldType];
       if (!fSpec) throw new Error("unknown field type: " + fieldType);
@@ -91,50 +105,14 @@
       if (fSpec.configure) fSpec.configure(api, fieldId);
 
       var eType = Engine._effectorTypeOf(api.getLayerType(effectorId));
-      if (!eType) {
-        Engine.warnings.push("addField: unknown effector " + effectorId);
-        return { fieldId: fieldId, extraIds: [] };
-      }
-      var slot = TM().effectors[eType].fieldSlot;
-      if (slot) {
-        Engine._wire(fieldId, "id", effectorId, slot);
-        return { fieldId: fieldId, extraIds: [] };
-      }
-      // null slot (e.g. random) -> combiner path, implemented in Task 8
-      return Engine._addFieldViaCombiner(fieldId, effectorId, clonerId);
-    },
-
-    // Find which duplicator XFORM channels are currently driven by `effectorId`.
-    _drivenChannels: function (effectorId, clonerId) {
-      var out = [];
-      var xf = TM().XFORM;
-      for (var name in xf) {
-        if (xf.hasOwnProperty(name) && api.getInConnection(clonerId, xf[name]) === effectorId) out.push(xf[name]);
-      }
-      return out;
-    },
-
-    _addFieldViaCombiner: function (fieldId, effectorId, clonerId) {
-      var channels = Engine._drivenChannels(effectorId, clonerId);
-      if (channels.length === 0) {
-        // The effector drives no cloner channel directly — it already has a
-        // Field (its channels run through a combiner), or no channels are
-        // enabled. Don't leave an orphan falloff; surface a warning instead.
-        Engine.warnings.push("addField: Random effector already has a Field (or drives no channel); field not added");
+      var slot = eType ? TM().effectors[eType].fieldSlot : null;
+      if (!slot) {
+        Engine.warnings.push("addField: " + (eType ? "'" + eType + "' effector does not support a Field" : "unknown effector " + effectorId) + "; field not added");
         api.deleteLayer(fieldId);
         return { fieldId: null, extraIds: [] };
       }
-      var extra = [];
-      for (var i = 0; i < channels.length; i++) {
-        var attr = channels[i];
-        var combo = Engine._create("math", Engine._nextName("Field Mix"));
-        api.set(combo, { "operation": "multiply" });   // best-known value; confirmed live in Task 13
-        Engine._wire(effectorId, "id", combo, "value");
-        Engine._wire(fieldId, "id", combo, "second");
-        Engine._wire(combo, "id", clonerId, attr);      // replaces the direct effector input
-        extra.push(combo);
-      }
-      return { fieldId: fieldId, extraIds: extra };
+      Engine._wire(fieldId, "id", effectorId, slot);
+      return { fieldId: fieldId, extraIds: [] };
     }
   };
 

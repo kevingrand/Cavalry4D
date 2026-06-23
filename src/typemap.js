@@ -11,9 +11,11 @@
   // Centralized Cavalry attribute strings. Some are best-known; the in-app
   // self-test (Task 12) confirms them live. If wrong, fix here + the test.
   var paths = {
-    shapeInput: "shapes.0",       // toolkit used "shapes"; verify slot index
     generatorAttr: "generator",
-    fieldSlot: "falloffs.0.id"
+    // Connect a falloff to a behaviour's "falloffs" LIST input; Cavalry then
+    // auto-assigns it to falloffs.0.id (verified live via the Stallion bridge).
+    // (Shapes go into a Duplicator by PARENTING, not by a connection.)
+    fieldSlot: "falloffs"
   };
 
   var cloners = {
@@ -28,13 +30,16 @@
   };
 
   var effectors = {
-    random: { layer: "random",     label: "Random Effector", channelAttrs: XFORM, fieldSlot: null,
+    // fieldSlot "falloffs": connect a field into the behaviour's falloffs list
+    // (random/value/stagger all expose it; a field there attenuates the whole
+    // effector spatially). colorArray has no falloffs input -> fieldSlot null.
+    random: { layer: "random",     label: "Random Effector", channelAttrs: XFORM, fieldSlot: paths.fieldSlot,
               defaultChannels: { position: true, scale: false, rotation: true } },
     plain:  { layer: "value",      label: "Plain Effector",  channelAttrs: XFORM, fieldSlot: paths.fieldSlot,
               defaultChannels: { position: true, scale: false, rotation: false } },
     step:   { layer: "stagger",    label: "Step Effector",   channelAttrs: XFORM, fieldSlot: paths.fieldSlot,
               defaultChannels: { position: false, scale: false, rotation: true } },
-    shader: { layer: "colorArray", label: "Shader Effector", channelAttrs: { color: "material.materialColor" }, fieldSlot: paths.fieldSlot,
+    shader: { layer: "colorArray", label: "Shader Effector", channelAttrs: { color: "material.materialColor" }, fieldSlot: null,
               defaultChannels: { color: true } }
   };
 
@@ -42,7 +47,7 @@
     linear:    { layer: "falloff", label: "Linear Field",    configure: function (api, id) { api.set(id, { "shapeType": "Linear" }); } },
     spherical: { layer: "falloff", label: "Spherical Field", configure: function (api, id) { api.set(id, { "shapeType": "Circle" }); } },
     box:       { layer: "falloff", label: "Box Field",       configure: function (api, id) { api.set(id, { "shapeType": "Rectangle" }); } },
-    random:    { layer: "falloff", label: "Random Field",    configure: function (api, id) { api.set(id, { "shapeType": "Circle", "probability": 0.5 }); } }
+    random:    { layer: "falloff", label: "Random Field",    configure: function (api, id) { api.set(id, { "shapeType": "Circle", "useProbability": true }); } }
   };
 
   return { XFORM: XFORM, paths: paths, cloners: cloners, effectors: effectors, fields: fields };

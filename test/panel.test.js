@@ -91,12 +91,12 @@ test("clicking a field button with an effector selected calls engine.addField wi
   assert.deepEqual(eng.calls[0], ["addField", "spherical", effectorId, clonerId]);
 });
 
-test("effector button resolves the cloner through a combiner when the Random effector is already fielded", () => {
+test("effector button resolves the cloner for a fielded Random effector", () => {
   global.api = makeApi(); global.cavalry = makeCavalry(); global.ui = makeUi();
   const shape = global.api.create("basicShape", "Box");
   const { clonerId } = Engine.createCloner("grid", [shape]);
   const { effectorId } = Engine.addEffector("random", clonerId, { rotation: true, position: false, scale: false });
-  Engine.addField("spherical", effectorId, clonerId); // inserts random -> math -> cloner
+  Engine.addField("spherical", effectorId, clonerId); // field -> random.falloffs; random still drives the cloner directly
   global.api.setSelection([effectorId]);
   const eng = spyEngine();
   Panel.build(eng);
@@ -105,16 +105,15 @@ test("effector button resolves the cloner through a combiner when the Random eff
   assert.equal((global.ui._messages || []).length, 0);
 });
 
-test("a second field on an already-fielded Random effector shows a modal (no silent orphan)", () => {
+test("a field on a Shader effector shows the unsupported modal", () => {
   global.api = makeApi(); global.cavalry = makeCavalry(); global.ui = makeUi();
   const shape = global.api.create("basicShape", "Box");
   const { clonerId } = Engine.createCloner("grid", [shape]);
-  const { effectorId } = Engine.addEffector("random", clonerId, { rotation: true, position: false, scale: false });
-  Engine.addField("spherical", effectorId, clonerId); // first field -> combiner
+  const { effectorId } = Engine.addEffector("shader", clonerId);
   global.api.setSelection([effectorId]);
-  Panel.build(Engine);                                 // real engine so the guard runs
+  Panel.build(Engine);                                 // real engine so addField runs
   Panel._buttons.find(b => b._action === "field:box").click();
-  assert.ok((global.ui._messages || []).some(m => m.indexOf("already") >= 0));
+  assert.ok((global.ui._messages || []).some(m => m.indexOf("doesn't support") >= 0));
 });
 
 test("refresh summarizes the selected cloner and its effectors", () => {

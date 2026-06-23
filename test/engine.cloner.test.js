@@ -12,13 +12,13 @@ function setup(selection) {
   return global.api;
 }
 
-test("createCloner makes a duplicator and connects the selection as its shape input", () => {
+test("createCloner makes a duplicator and parents the selection into it", () => {
   const api = setup();
   const shape = api.create("basicShape", "Box");
   const { clonerId } = Engine.createCloner("grid", [shape]);
   assert.equal(api.getLayerType(clonerId), "duplicator");
   assert.equal(api.getCurrentGeneratorType(clonerId, "generator"), "grid");
-  assert.equal(api.getInConnection(clonerId, "shapes.0"), shape); // shape -> duplicator.shapes.0
+  assert.equal(api.getParent(shape), clonerId); // a Duplicator clones its children
   assert.equal(Engine.warnings.length, 0);
 });
 

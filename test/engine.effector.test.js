@@ -18,15 +18,15 @@ test("Random effector drives its default channels (rotation + position) and not 
   const { api, clonerId } = setup();
   const { effectorId } = Engine.addEffector("random", clonerId);
   assert.equal(api.getLayerType(effectorId), "random");
-  assert.equal(api.getInConnection(clonerId, "shapeRotation"), effectorId);
-  assert.equal(api.getInConnection(clonerId, "shapePosition"), effectorId);
+  assert.equal(api.getInConnection(clonerId, "shapeRotation"), effectorId + ".id");
+  assert.equal(api.getInConnection(clonerId, "shapePosition"), effectorId + ".id");
   assert.equal(api.getInConnection(clonerId, "shapeScale"), "");
 });
 
 test("explicit channels override the defaults", () => {
   const { api, clonerId } = setup();
   const { effectorId } = Engine.addEffector("random", clonerId, { position: false, scale: true, rotation: false });
-  assert.equal(api.getInConnection(clonerId, "shapeScale"), effectorId);
+  assert.equal(api.getInConnection(clonerId, "shapeScale"), effectorId + ".id");
   assert.equal(api.getInConnection(clonerId, "shapeRotation"), "");
   assert.equal(api.getInConnection(clonerId, "shapePosition"), "");
 });
@@ -35,19 +35,19 @@ test("Plain effector uses a value behaviour wired to position by default", () =>
   const { api, clonerId } = setup();
   const { effectorId } = Engine.addEffector("plain", clonerId);
   assert.equal(api.getLayerType(effectorId), "value");
-  assert.equal(api.getInConnection(clonerId, "shapePosition"), effectorId);
+  assert.equal(api.getInConnection(clonerId, "shapePosition"), effectorId + ".id");
 });
 
 test("Step effector uses a stagger wired to rotation by default", () => {
   const { api, clonerId } = setup();
   const { effectorId } = Engine.addEffector("step", clonerId);
   assert.equal(api.getLayerType(effectorId), "stagger");
-  assert.equal(api.getInConnection(clonerId, "shapeRotation"), effectorId);
+  assert.equal(api.getInConnection(clonerId, "shapeRotation"), effectorId + ".id");
 });
 
 test("Shader effector uses a colorArray wired to per-copy color", () => {
   const { api, clonerId } = setup();
   const { effectorId } = Engine.addEffector("shader", clonerId);
   assert.equal(api.getLayerType(effectorId), "colorArray");
-  assert.equal(api.getInConnection(clonerId, "material.materialColor"), effectorId);
+  assert.equal(api.getInConnection(clonerId, "material.materialColor"), effectorId + ".id");
 });

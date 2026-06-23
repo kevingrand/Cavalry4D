@@ -18,9 +18,9 @@ function setup() {
 test("turning a channel off disconnects it; turning one on connects it", () => {
   const { api, clonerId, effectorId } = setup();
   Engine.setEffectorChannels(effectorId, clonerId, { position: false, scale: true, rotation: true });
-  assert.equal(api.getInConnection(clonerId, "shapePosition"), "");        // turned off
-  assert.equal(api.getInConnection(clonerId, "shapeScale"), effectorId);    // turned on
-  assert.equal(api.getInConnection(clonerId, "shapeRotation"), effectorId); // still on
+  assert.equal(api.getInConnection(clonerId, "shapePosition"), "");                // turned off
+  assert.equal(api.getInConnection(clonerId, "shapeScale"), effectorId + ".id");    // turned on
+  assert.equal(api.getInConnection(clonerId, "shapeRotation"), effectorId + ".id"); // still on
 });
 
 test("setEffectorChannels on a non-effector layer warns and wires nothing", () => {

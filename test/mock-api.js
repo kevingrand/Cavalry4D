@@ -43,14 +43,19 @@ function makeApi(opts) {
       }
     },
     disconnectInput: function (id, attr) { removeInput(id, attr); },
+    // Faithful to real Cavalry: returns "sourceLayer.sourceAttr" (e.g. "random#1.id"), "" if none.
     getInConnection: function (id, attr) {
-      for (var i = 0; i < conns.length; i++) if (conns[i].to === id && conns[i].toAttr === attr) return conns[i].from;
+      for (var i = 0; i < conns.length; i++) if (conns[i].to === id && conns[i].toAttr === attr) return conns[i].from + "." + conns[i].fromAttr;
       return "";
     },
+    // Faithful to real Cavalry: returns ["targetLayer.targetAttr", ...] (e.g. ["duplicator#9.shapeScale"]).
     getOutConnections: function (id, attr) {
       var r = [];
-      for (var i = 0; i < conns.length; i++) if (conns[i].from === id && (attr === undefined || conns[i].fromAttr === attr)) r.push(conns[i].to);
+      for (var i = 0; i < conns.length; i++) if (conns[i].from === id && (attr === undefined || conns[i].fromAttr === attr)) r.push(conns[i].to + "." + conns[i].toAttr);
       return r;
+    },
+    getChildren: function (id) {
+      var r = []; for (var k in layers) if (layers.hasOwnProperty(k) && layers[k].parent === id) r.push(k); return r;
     },
     getInConnectedAttributes: function (id) {
       var r = []; for (var i = 0; i < conns.length; i++) if (conns[i].to === id) r.push(conns[i].toAttr); return r;

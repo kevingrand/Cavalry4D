@@ -8,7 +8,7 @@ test("mock api records connect and reports it via getInConnection", () => {
   const a = api.create("colorPlane", "A");
   const b = api.create("textShape", "B");
   api.connect(a, "id", b, "fill.color");
-  assert.equal(api.getInConnection(b, "fill.color"), a);
+  assert.equal(api.getInConnection(b, "fill.color"), a + ".id"); // Cavalry returns "source.attr"
   assert.equal(api.getLayerType(a), "colorPlane");
 });
 
@@ -19,5 +19,5 @@ test("mock api enforces one input per attribute (last wins)", () => {
   const t = api.create("textShape", "T");
   api.connect(a, "id", t, "fill.color");
   api.connect(b, "id", t, "fill.color");
-  assert.equal(api.getInConnection(t, "fill.color"), b);
+  assert.equal(api.getInConnection(t, "fill.color"), b + ".id");
 });

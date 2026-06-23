@@ -8,6 +8,7 @@
   if (typeof require !== "undefined") { try { require("./typemap"); require("./selection"); } catch (e) {} }
 
   function TM() { return root.MG.TypeMap; }
+  function layerOf(s) { return s ? String(s).split(".")[0] : ""; }
 
   var COLORS = { clone: "#8BC34A", effector: "#9D7CD8", field: "#4A90D9" };
 
@@ -28,23 +29,9 @@
       if (!selId) return null;
       var d = root.MG.Selection.describe(selId);
       if (d.role === "cloner") return selId;
-      if (d.role === "effector") return Panel._clonerFromOutputs(selId, {});
-      return null;
-    },
-
-    // Walk an effector's out-connections to its duplicator, following through any
-    // `math` combiner (a fielded Random effector drives the cloner via a math node).
-    _clonerFromOutputs: function (layerId, seen) {
-      if (seen[layerId]) return null;
-      seen[layerId] = true;
-      var outs = api.getOutConnections(layerId, "id");
-      var i;
-      for (i = 0; i < outs.length; i++) if (api.getLayerType(outs[i]) === "duplicator") return outs[i];
-      for (i = 0; i < outs.length; i++) {
-        if (api.getLayerType(outs[i]) === "math") {
-          var c = Panel._clonerFromOutputs(outs[i], seen);
-          if (c) return c;
-        }
+      if (d.role === "effector") {
+        var outs = api.getOutConnections(selId, "id");
+        for (var i = 0; i < outs.length; i++) { var L = layerOf(outs[i]); if (api.getLayerType(L) === "duplicator") return L; }
       }
       return null;
     },
@@ -126,7 +113,7 @@
             if (!effId) { Panel._modal.showMessage("Select an Effector first."); return; }
             var cloner = Panel._resolveCloner(effId);
             var added = Panel.engine.addField(name, effId, cloner);
-            if (added && !added.fieldId) { Panel._modal.showMessage("Couldn't add the Field — this Random Effector already has one (one Field per Random Effector in v1)."); }
+            if (added && !added.fieldId) { Panel._modal.showMessage("Couldn't add the Field — this Effector type doesn't support Fields (e.g. Shader)."); }
           }
           if (typeof Panel.refresh === "function") Panel.refresh(api.getSelection());
         };

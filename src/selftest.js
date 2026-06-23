@@ -11,6 +11,8 @@
     var E = root.MG.Engine;
     var details = [], passed = 0, failed = 0;
     function check(label, cond) { if (cond) { passed++; } else { failed++; } details.push((cond ? "PASS " : "FAIL ") + label); }
+    function layerOf(s) { return s ? String(s).split(".")[0] : ""; }
+    function drives(fromId, toId) { var o = api.getOutConnections(fromId, "id"); for (var i = 0; i < o.length; i++) if (layerOf(o[i]) === toId) return true; return false; }
 
     E.resetWarnings();
     var shape = api.create("basicShape", "SelftestShape");
@@ -22,18 +24,15 @@
     }
     var base = E.createCloner("grid", [shape]).clonerId;
 
-    var rnd = E.addEffector("random", base).effectorId;
-    check("random -> rotation", api.getInConnection(base, "shapeRotation") === rnd);
-    var pln = E.addEffector("plain", base).effectorId;
-    check("plain -> position", api.getInConnection(base, "shapePosition") === pln);
+    var rnd = E.addEffector("random", base, { rotation: true, position: false, scale: false }).effectorId;
+    check("random effector drives cloner", drives(rnd, base));
+    var pln = E.addEffector("plain", base, { position: true, rotation: false, scale: false }).effectorId;
+    check("plain effector drives cloner", drives(pln, base));
 
     var f = E.addField("spherical", pln, base);
-    check("field -> plain falloff slot", api.getInConnection(pln, "falloffs.0.id") === f.fieldId);
-
-    var base2 = E.createCloner("grid", [shape]).clonerId;
-    var rnd2 = E.addEffector("random", base2, { rotation: true, position: false, scale: false }).effectorId;
-    var fc = E.addField("box", rnd2, base2);
-    check("random combiner inserted", fc.extraIds.length === 1 && api.getLayerType(fc.extraIds[0]) === "math");
+    check("field drives plain effector", drives(f.fieldId, pln));
+    var fr = E.addField("box", rnd, base);
+    check("field drives random effector", drives(fr.fieldId, rnd));
 
     return { passed: passed, failed: failed, warnings: E.warnings.slice(), details: details };
   };

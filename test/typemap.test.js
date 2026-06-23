@@ -16,11 +16,12 @@ test("cloner modes map to Cavalry distributions", () => {
 
 test("effectors carry their source layer and field-slot strategy", () => {
   assert.equal(TypeMap.effectors.random.layer, "random");
-  assert.equal(TypeMap.effectors.random.fieldSlot, null);            // needs combiner
+  assert.equal(TypeMap.effectors.random.fieldSlot, "falloffs");      // random has a falloffs input
   assert.equal(TypeMap.effectors.plain.layer, "value");
-  assert.equal(TypeMap.effectors.plain.fieldSlot, "falloffs.0.id");
+  assert.equal(TypeMap.effectors.plain.fieldSlot, "falloffs");
   assert.equal(TypeMap.effectors.step.layer, "stagger");
   assert.equal(TypeMap.effectors.shader.layer, "colorArray");
+  assert.equal(TypeMap.effectors.shader.fieldSlot, null);            // colorArray has no falloffs input
   assert.deepEqual(TypeMap.effectors.random.defaultChannels, { position: true, scale: false, rotation: true });
 });
 

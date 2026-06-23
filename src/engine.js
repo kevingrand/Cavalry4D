@@ -82,6 +82,27 @@
         if (channels[name]) Engine._wire(effectorId, "id", clonerId, target);
         else api.disconnectInput(clonerId, target);
       }
+    },
+
+    addField: function (fieldType, effectorId, clonerId) {
+      var fSpec = TM().fields[fieldType];
+      if (!fSpec) throw new Error("unknown field type: " + fieldType);
+      var fieldId = Engine._create(fSpec.layer, Engine._nextName(fSpec.label));
+      if (fSpec.configure) fSpec.configure(api, fieldId);
+
+      var eType = Engine._effectorTypeOf(api.getLayerType(effectorId));
+      var slot = eType ? TM().effectors[eType].fieldSlot : null;
+      if (slot) {
+        Engine._wire(fieldId, "id", effectorId, slot);
+        return { fieldId: fieldId, extraIds: [] };
+      }
+      // null slot (e.g. random) -> combiner path, implemented in Task 8
+      return Engine._addFieldViaCombiner(fieldId, effectorId, clonerId);
+    },
+
+    _addFieldViaCombiner: function (fieldId, effectorId, clonerId) {
+      Engine.warnings.push("combiner path not yet implemented");
+      return { fieldId: fieldId, extraIds: [] };
     }
   };
 

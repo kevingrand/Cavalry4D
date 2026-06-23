@@ -91,6 +91,20 @@ test("clicking a field button with an effector selected calls engine.addField wi
   assert.deepEqual(eng.calls[0], ["addField", "spherical", effectorId, clonerId]);
 });
 
+test("effector button resolves the cloner through a combiner when the Random effector is already fielded", () => {
+  global.api = makeApi(); global.cavalry = makeCavalry(); global.ui = makeUi();
+  const shape = global.api.create("basicShape", "Box");
+  const { clonerId } = Engine.createCloner("grid", [shape]);
+  const { effectorId } = Engine.addEffector("random", clonerId, { rotation: true, position: false, scale: false });
+  Engine.addField("spherical", effectorId, clonerId); // inserts random -> math -> cloner
+  global.api.setSelection([effectorId]);
+  const eng = spyEngine();
+  Panel.build(eng);
+  Panel._buttons.find(b => b._action === "effector:plain").click();
+  assert.deepEqual(eng.calls[0], ["addEffector", "plain", clonerId]);
+  assert.equal((global.ui._messages || []).length, 0);
+});
+
 test("refresh summarizes the selected cloner and its effectors", () => {
   global.api = makeApi(); global.cavalry = makeCavalry(); global.ui = makeUi();
   const shape = global.api.create("basicShape", "Box");

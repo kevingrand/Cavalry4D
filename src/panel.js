@@ -28,9 +28,23 @@
       if (!selId) return null;
       var d = root.MG.Selection.describe(selId);
       if (d.role === "cloner") return selId;
-      if (d.role === "effector") {
-        var outs = api.getOutConnections(selId, "id");
-        for (var i = 0; i < outs.length; i++) if (api.getLayerType(outs[i]) === "duplicator") return outs[i];
+      if (d.role === "effector") return Panel._clonerFromOutputs(selId, {});
+      return null;
+    },
+
+    // Walk an effector's out-connections to its duplicator, following through any
+    // `math` combiner (a fielded Random effector drives the cloner via a math node).
+    _clonerFromOutputs: function (layerId, seen) {
+      if (seen[layerId]) return null;
+      seen[layerId] = true;
+      var outs = api.getOutConnections(layerId, "id");
+      var i;
+      for (i = 0; i < outs.length; i++) if (api.getLayerType(outs[i]) === "duplicator") return outs[i];
+      for (i = 0; i < outs.length; i++) {
+        if (api.getLayerType(outs[i]) === "math") {
+          var c = Panel._clonerFromOutputs(outs[i], seen);
+          if (c) return c;
+        }
       }
       return null;
     },

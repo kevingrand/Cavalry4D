@@ -14,6 +14,7 @@
   var Panel = {
     _buttons: [],
     engine: null,
+    _modal: null,
 
     _actionButton: function (label, action, color) {
       var b = new ui.Button(label);
@@ -23,9 +24,28 @@
       return b;
     },
 
+    _resolveCloner: function (selId) {
+      if (!selId) return null;
+      var d = root.MG.Selection.describe(selId);
+      if (d.role === "cloner") return selId;
+      if (d.role === "effector") {
+        var outs = api.getOutConnections(selId, "id");
+        for (var i = 0; i < outs.length; i++) if (api.getLayerType(outs[i]) === "duplicator") return outs[i];
+      }
+      return null;
+    },
+
+    _resolveEffector: function (selId) {
+      if (!selId) return null;
+      var d = root.MG.Selection.describe(selId);
+      if (d.role === "effector") return selId;
+      return null;
+    },
+
     build: function (engine) {
       Panel.engine = engine;
       Panel._buttons = [];
+      Panel._modal = new ui.Modal();
       var rootLayout = new ui.VLayout();
       rootLayout.setSpaceBetween(6);
       rootLayout.setMargins(6, 6, 6, 6);
@@ -57,7 +77,30 @@
       return rootLayout;
     },
 
-    _wireButtons: function () { /* implemented in Task 11 */ }
+    _wireButtons: function () {
+      Panel._buttons.forEach(function (btn) {
+        var parts = btn._action.split(":");
+        var kind = parts[0], name = parts[1];
+        btn.onClick = function () {
+          var sel = api.getSelection();
+          var first = sel[0] || null;
+          if (kind === "cloner") {
+            if (!first) { Panel._modal.showMessage("Select an object to clone."); return; }
+            Panel.engine.createCloner(name, sel);
+          } else if (kind === "effector") {
+            var clonerId = Panel._resolveCloner(first);
+            if (!clonerId) { Panel._modal.showMessage("Select a Cloner first."); return; }
+            Panel.engine.addEffector(name, clonerId);
+          } else if (kind === "field") {
+            var effId = Panel._resolveEffector(first);
+            if (!effId) { Panel._modal.showMessage("Select an Effector first."); return; }
+            var cloner = Panel._resolveCloner(effId);
+            Panel.engine.addField(name, effId, cloner);
+          }
+          if (typeof Panel.refresh === "function") Panel.refresh(api.getSelection());
+        };
+      });
+    }
   };
 
   return Panel;

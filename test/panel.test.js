@@ -1,8 +1,10 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { makeUi } = require("./mock-api.js");
+const { makeApi, makeCavalry, makeUi } = require("./mock-api.js");
+const Engine = require("../src/engine.js");
 require("../src/typemap.js");
+require("../src/selection.js");
 const Panel = require("../src/panel.js");
 
 function spyEngine() {
@@ -26,4 +28,40 @@ test("build creates a tagged action button for every cloner mode, effector, and 
   assert.ok(actions.includes("effector:shader"));
   assert.ok(actions.includes("field:spherical"));
   assert.ok(actions.includes("field:random"));
+});
+
+test("clicking a cloner button with a shape selected calls engine.createCloner", () => {
+  global.api = makeApi();
+  global.cavalry = makeCavalry();
+  global.ui = makeUi();
+  const shape = global.api.create("basicShape", "Box");
+  global.api.setSelection([shape]);
+  const eng = spyEngine();
+  Panel.build(eng);
+  Panel._buttons.find(b => b._action === "cloner:grid").click();
+  assert.deepEqual(eng.calls[0], ["createCloner", "grid", [shape]]);
+});
+
+test("clicking an effector button with nothing selected shows a modal and does not call engine", () => {
+  global.api = makeApi();
+  global.cavalry = makeCavalry();
+  global.ui = makeUi();
+  const eng = spyEngine();
+  Panel.build(eng);
+  Panel._buttons.find(b => b._action === "effector:random").click();
+  assert.equal(eng.calls.length, 0);
+  assert.ok(global.ui._messages.length >= 1);
+});
+
+test("clicking an effector button with a duplicator selected calls engine.addEffector", () => {
+  global.api = makeApi();
+  global.cavalry = makeCavalry();
+  global.ui = makeUi();
+  const shape = global.api.create("basicShape", "Box");
+  const { clonerId } = Engine.createCloner("grid", [shape]);
+  global.api.setSelection([clonerId]);
+  const eng = spyEngine();
+  Panel.build(eng);
+  Panel._buttons.find(b => b._action === "effector:random").click();
+  assert.deepEqual(eng.calls[0], ["addEffector", "random", clonerId]);
 });

@@ -22,3 +22,13 @@ test("turning a channel off disconnects it; turning one on connects it", () => {
   assert.equal(api.getInConnection(clonerId, "shapeScale"), effectorId);    // turned on
   assert.equal(api.getInConnection(clonerId, "shapeRotation"), effectorId); // still on
 });
+
+test("setEffectorChannels on a non-effector layer warns and wires nothing", () => {
+  global.api = makeApi(); global.cavalry = makeCavalry(); Engine.resetWarnings();
+  const api = global.api;
+  const notEffector = api.create("basicShape", "Box");
+  const cloner = api.create("duplicator", "Cloner");
+  Engine.setEffectorChannels(notEffector, cloner, { position: true, scale: true, rotation: true });
+  assert.ok(Engine.warnings.some(w => w.indexOf("unknown effector") >= 0));
+  assert.equal(api.getInConnection(cloner, "shapePosition"), "");
+});

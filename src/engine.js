@@ -63,7 +63,7 @@
       var effectorId = Engine._create(spec.layer, Engine._nextName(spec.label));
       var targets = Engine._channelTargets(type, channels);
       for (var i = 0; i < targets.length; i++) Engine._wire(effectorId, "id", clonerId, targets[i]);
-      return { effectorId: effectorId, comboIds: [] };
+      return { effectorId: effectorId, extraIds: [] };
     },
 
     _effectorTypeOf: function (layerType) {

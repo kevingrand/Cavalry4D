@@ -12,7 +12,7 @@ function spyEngine() {
   return {
     calls,
     createCloner: (...a) => (calls.push(["createCloner", ...a]), { clonerId: "duplicator#1" }),
-    addEffector: (...a) => (calls.push(["addEffector", ...a]), { effectorId: "random#1", comboIds: [] }),
+    addEffector: (...a) => (calls.push(["addEffector", ...a]), { effectorId: "random#1", extraIds: [] }),
     addField: (...a) => (calls.push(["addField", ...a]), { fieldId: "falloff#1", extraIds: [] }),
     setEffectorChannels: (...a) => calls.push(["setEffectorChannels", ...a])
   };

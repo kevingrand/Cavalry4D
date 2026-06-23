@@ -90,3 +90,14 @@ test("clicking a field button with an effector selected calls engine.addField wi
   Panel._buttons.find(b => b._action === "field:spherical").click();
   assert.deepEqual(eng.calls[0], ["addField", "spherical", effectorId, clonerId]);
 });
+
+test("refresh summarizes the selected cloner and its effectors", () => {
+  global.api = makeApi(); global.cavalry = makeCavalry(); global.ui = makeUi();
+  const shape = global.api.create("basicShape", "Box");
+  const { clonerId } = Engine.createCloner("grid", [shape]);
+  Engine.addEffector("plain", clonerId);
+  Panel.build(spyEngine());
+  Panel.refresh([clonerId]);
+  assert.match(Panel._selectionInfo.getText(), /Cloner \(grid\)/);
+  assert.match(Panel._selectionInfo.getText(), /plain/);
+});

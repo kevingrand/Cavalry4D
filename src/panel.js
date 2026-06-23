@@ -5,7 +5,7 @@
   if (typeof module !== "undefined" && module.exports) module.exports = mod;
 })(typeof globalThis !== "undefined" ? globalThis : this, function (root) {
   "use strict";
-  if (typeof require !== "undefined") { try { require("./typemap"); } catch (e) {} }
+  if (typeof require !== "undefined") { try { require("./typemap"); require("./selection"); } catch (e) {} }
 
   function TM() { return root.MG.TypeMap; }
 
@@ -75,6 +75,22 @@
 
       Panel._wireButtons();
       return rootLayout;
+    },
+
+    refresh: function (selectionIds) {
+      var id = selectionIds && selectionIds[0];
+      if (!id) { Panel._selectionInfo.setText("No selection"); return; }
+      var d = root.MG.Selection.describe(id);
+      if (d.role === "cloner") {
+        var txt = "Cloner (" + (d.mode || "?") + ") · " + d.effectors.length + " effector(s)";
+        for (var i = 0; i < d.effectors.length; i++) {
+          var ef = d.effectors[i];
+          txt += "\n• " + (ef.type || "?") + (ef.fields.length ? " → " + ef.fields[0].type : "");
+        }
+        Panel._selectionInfo.setText(txt);
+      } else {
+        Panel._selectionInfo.setText(d.role + " selected");
+      }
     },
 
     _wireButtons: function () {

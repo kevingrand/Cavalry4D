@@ -64,6 +64,24 @@
       var targets = Engine._channelTargets(type, channels);
       for (var i = 0; i < targets.length; i++) Engine._wire(effectorId, "id", clonerId, targets[i]);
       return { effectorId: effectorId, comboIds: [] };
+    },
+
+    _effectorTypeOf: function (layerType) {
+      var fx = TM().effectors;
+      for (var t in fx) if (fx.hasOwnProperty(t) && fx[t].layer === layerType) return t;
+      return null;
+    },
+
+    setEffectorChannels: function (effectorId, clonerId, channels) {
+      var type = Engine._effectorTypeOf(api.getLayerType(effectorId));
+      if (!type) { Engine.warnings.push("setEffectorChannels: unknown effector " + effectorId); return; }
+      var attrs = TM().effectors[type].channelAttrs;
+      for (var name in attrs) {
+        if (!attrs.hasOwnProperty(name)) continue;
+        var target = attrs[name];
+        if (channels[name]) Engine._wire(effectorId, "id", clonerId, target);
+        else api.disconnectInput(clonerId, target);
+      }
     }
   };
 

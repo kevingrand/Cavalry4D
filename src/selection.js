@@ -16,7 +16,8 @@
   }
   function fieldTypeOf(fieldId) {
     var st = api.get(fieldId, "shapeType");
-    if (api.get(fieldId, "probability") !== undefined && api.get(fieldId, "probability") !== null && st === "Circle") return "random";
+    var prob = api.get(fieldId, "probability");
+    if (prob !== undefined && prob !== null && st === "Circle") return "random";
     if (st === "Linear") return "linear";
     if (st === "Rectangle") return "box";
     if (st === "Circle") return "spherical";
@@ -42,7 +43,12 @@
           // unwrap a combiner (math) back to the real effector on .value
           var realType = api.getLayerType(src);
           var effId = src;
-          if (realType === "math") { effId = api.getInConnection(src, "value") || src; realType = api.getLayerType(effId); }
+          if (realType === "math") {
+            var inner = api.getInConnection(src, "value");
+            if (!inner) continue;
+            effId = inner;
+            realType = api.getLayerType(effId);
+          }
           if (seen[effId]) { seen[effId].channels.push(attr); continue; }
           var rec = { id: effId, type: effectorTypeOf(realType), channels: [attr], fields: [] };
           var fSrc = api.getInConnection(effId, "falloffs.0.id");

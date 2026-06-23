@@ -31,3 +31,19 @@ test("describe(non-duplicator) returns role other/effector appropriately", () =>
   assert.equal(Selection.describe(r).role, "effector");
   assert.equal(Selection.describe(api.create("ellipse", "x")).role, "other");
 });
+
+test("describe(cloner) unwraps a math combiner back to the Random effector and its field", () => {
+  global.api = makeApi(); global.cavalry = makeCavalry(); Engine.resetWarnings();
+  const shape = global.api.create("basicShape", "Box");
+  const { clonerId } = Engine.createCloner("grid", [shape]);
+  const { effectorId } = Engine.addEffector("random", clonerId, { position: false, scale: false, rotation: true });
+  Engine.addField("spherical", effectorId, clonerId);   // null fieldSlot -> inserts a math combiner
+
+  const d = Selection.describe(clonerId);
+  assert.equal(d.role, "cloner");
+  assert.equal(d.effectors.length, 1);
+  assert.equal(d.effectors[0].id, effectorId);          // unwrapped to the real effector, NOT the math node
+  assert.equal(d.effectors[0].type, "random");
+  assert.equal(d.effectors[0].fields.length, 1);
+  assert.equal(d.effectors[0].fields[0].type, "spherical");
+});

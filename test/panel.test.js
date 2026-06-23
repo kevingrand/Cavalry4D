@@ -50,7 +50,7 @@ test("clicking an effector button with nothing selected shows a modal and does n
   Panel.build(eng);
   Panel._buttons.find(b => b._action === "effector:random").click();
   assert.equal(eng.calls.length, 0);
-  assert.ok(global.ui._messages.length >= 1);
+  assert.equal(global.ui._messages[0], "Select a Cloner first.");
 });
 
 test("clicking an effector button with a duplicator selected calls engine.addEffector", () => {
@@ -64,4 +64,29 @@ test("clicking an effector button with a duplicator selected calls engine.addEff
   Panel.build(eng);
   Panel._buttons.find(b => b._action === "effector:random").click();
   assert.deepEqual(eng.calls[0], ["addEffector", "random", clonerId]);
+});
+
+test("clicking a field button with nothing selected shows the effector guard modal", () => {
+  global.api = makeApi();
+  global.cavalry = makeCavalry();
+  global.ui = makeUi();
+  const eng = spyEngine();
+  Panel.build(eng);
+  Panel._buttons.find(b => b._action === "field:spherical").click();
+  assert.equal(eng.calls.length, 0);
+  assert.equal(global.ui._messages[0], "Select an Effector first.");
+});
+
+test("clicking a field button with an effector selected calls engine.addField with the resolved cloner", () => {
+  global.api = makeApi();
+  global.cavalry = makeCavalry();
+  global.ui = makeUi();
+  const shape = global.api.create("basicShape", "Box");
+  const { clonerId } = Engine.createCloner("grid", [shape]);
+  const { effectorId } = Engine.addEffector("random", clonerId);
+  global.api.setSelection([effectorId]);
+  const eng = spyEngine();
+  Panel.build(eng);
+  Panel._buttons.find(b => b._action === "field:spherical").click();
+  assert.deepEqual(eng.calls[0], ["addField", "spherical", effectorId, clonerId]);
 });

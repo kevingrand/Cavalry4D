@@ -125,7 +125,8 @@
             var effId = Panel._resolveEffector(first);
             if (!effId) { Panel._modal.showMessage("Select an Effector first."); return; }
             var cloner = Panel._resolveCloner(effId);
-            Panel.engine.addField(name, effId, cloner);
+            var added = Panel.engine.addField(name, effId, cloner);
+            if (added && !added.fieldId) { Panel._modal.showMessage("Couldn't add the Field — this Random Effector already has one (one Field per Random Effector in v1)."); }
           }
           if (typeof Panel.refresh === "function") Panel.refresh(api.getSelection());
         };

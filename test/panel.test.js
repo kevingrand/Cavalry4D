@@ -105,6 +105,18 @@ test("effector button resolves the cloner through a combiner when the Random eff
   assert.equal((global.ui._messages || []).length, 0);
 });
 
+test("a second field on an already-fielded Random effector shows a modal (no silent orphan)", () => {
+  global.api = makeApi(); global.cavalry = makeCavalry(); global.ui = makeUi();
+  const shape = global.api.create("basicShape", "Box");
+  const { clonerId } = Engine.createCloner("grid", [shape]);
+  const { effectorId } = Engine.addEffector("random", clonerId, { rotation: true, position: false, scale: false });
+  Engine.addField("spherical", effectorId, clonerId); // first field -> combiner
+  global.api.setSelection([effectorId]);
+  Panel.build(Engine);                                 // real engine so the guard runs
+  Panel._buttons.find(b => b._action === "field:box").click();
+  assert.ok((global.ui._messages || []).some(m => m.indexOf("already") >= 0));
+});
+
 test("refresh summarizes the selected cloner and its effectors", () => {
   global.api = makeApi(); global.cavalry = makeCavalry(); global.ui = makeUi();
   const shape = global.api.create("basicShape", "Box");

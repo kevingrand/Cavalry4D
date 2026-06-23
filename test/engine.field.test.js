@@ -71,3 +71,20 @@ test("a field on a Random effector with two driven channels inserts two combiner
   assert.equal(api.getLayerType(res.extraIds[1]), "math");
   assert.equal(Engine.warnings.length, 0);
 });
+
+test("a second field on the same Random effector is refused (warning, no orphan, no extra wiring)", () => {
+  global.api = makeApi(); global.cavalry = makeCavalry(); Engine.resetWarnings();
+  const api = global.api;
+  const shape = api.create("basicShape", "Box");
+  const { clonerId } = Engine.createCloner("grid", [shape]);
+  const { effectorId } = Engine.addEffector("random", clonerId, { rotation: true, position: false, scale: false });
+  const first = Engine.addField("spherical", effectorId, clonerId);
+  assert.equal(first.extraIds.length, 1);                        // first field OK -> combiner
+  Engine.resetWarnings();
+  const layersBefore = Object.keys(api._layers).length;
+  const second = Engine.addField("box", effectorId, clonerId);   // refused
+  assert.equal(second.fieldId, null);
+  assert.equal(second.extraIds.length, 0);
+  assert.ok(Engine.warnings.some(function (w) { return w.indexOf("already") >= 0; }));
+  assert.equal(Object.keys(api._layers).length, layersBefore);   // orphan falloff deleted -> net zero new layers
+});

@@ -116,6 +116,14 @@
 
     _addFieldViaCombiner: function (fieldId, effectorId, clonerId) {
       var channels = Engine._drivenChannels(effectorId, clonerId);
+      if (channels.length === 0) {
+        // The effector drives no cloner channel directly — it already has a
+        // Field (its channels run through a combiner), or no channels are
+        // enabled. Don't leave an orphan falloff; surface a warning instead.
+        Engine.warnings.push("addField: Random effector already has a Field (or drives no channel); field not added");
+        api.deleteLayer(fieldId);
+        return { fieldId: null, extraIds: [] };
+      }
       var extra = [];
       for (var i = 0; i < channels.length; i++) {
         var attr = channels[i];

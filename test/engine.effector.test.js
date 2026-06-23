@@ -37,3 +37,17 @@ test("Plain effector uses a value behaviour wired to position by default", () =>
   assert.equal(api.getLayerType(effectorId), "value");
   assert.equal(api.getInConnection(clonerId, "shapePosition"), effectorId);
 });
+
+test("Step effector uses a stagger wired to rotation by default", () => {
+  const { api, clonerId } = setup();
+  const { effectorId } = Engine.addEffector("step", clonerId);
+  assert.equal(api.getLayerType(effectorId), "stagger");
+  assert.equal(api.getInConnection(clonerId, "shapeRotation"), effectorId);
+});
+
+test("Shader effector uses a colorArray wired to per-copy color", () => {
+  const { api, clonerId } = setup();
+  const { effectorId } = Engine.addEffector("shader", clonerId);
+  assert.equal(api.getLayerType(effectorId), "colorArray");
+  assert.equal(api.getInConnection(clonerId, "material.materialColor"), effectorId);
+});

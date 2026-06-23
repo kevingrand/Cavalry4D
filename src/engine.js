@@ -120,7 +120,7 @@
       for (var i = 0; i < channels.length; i++) {
         var attr = channels[i];
         var combo = Engine._create("math", Engine._nextName("Field Mix"));
-        api.set(combo, { "operation": "multiply" });   // verify operation attr/value live
+        api.set(combo, { "operation": "multiply" });   // best-known value; confirmed live in Task 13
         Engine._wire(effectorId, "id", combo, "value");
         Engine._wire(fieldId, "id", combo, "second");
         Engine._wire(combo, "id", clonerId, attr);      // replaces the direct effector input

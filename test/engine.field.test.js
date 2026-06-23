@@ -58,3 +58,16 @@ test("a field on a Random effector inserts a multiply combiner per driven channe
   assert.equal(api.getInConnection(combo, "second"), res.fieldId);      // field into the combiner
   assert.equal(Engine.warnings.length, 0);
 });
+
+test("a field on a Random effector with two driven channels inserts two combiners", () => {
+  global.api = makeApi(); global.cavalry = makeCavalry(); Engine.resetWarnings();
+  const shape = global.api.create("basicShape", "Box");
+  const { clonerId } = Engine.createCloner("grid", [shape]);
+  const { effectorId } = Engine.addEffector("random", clonerId, { position: true, scale: false, rotation: true });
+  const api = global.api;
+  const res = Engine.addField("spherical", effectorId, clonerId);
+  assert.equal(res.extraIds.length, 2);                 // one combiner per driven channel
+  assert.equal(api.getLayerType(res.extraIds[0]), "math");
+  assert.equal(api.getLayerType(res.extraIds[1]), "math");
+  assert.equal(Engine.warnings.length, 0);
+});

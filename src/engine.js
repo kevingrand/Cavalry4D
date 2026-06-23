@@ -45,6 +45,25 @@
       var src = (selectionIds && selectionIds[0]) || null;
       if (src) Engine._wire(src, "id", clonerId, TM().paths.shapeInput);
       return { clonerId: clonerId };
+    },
+
+    _channelTargets: function (type, channels) {
+      var spec = TM().effectors[type];
+      var use = channels || spec.defaultChannels;
+      var targets = [];
+      for (var name in spec.channelAttrs) {
+        if (spec.channelAttrs.hasOwnProperty(name) && use[name]) targets.push(spec.channelAttrs[name]);
+      }
+      return targets;
+    },
+
+    addEffector: function (type, clonerId, channels) {
+      var spec = TM().effectors[type];
+      if (!spec) throw new Error("unknown effector type: " + type);
+      var effectorId = Engine._create(spec.layer, Engine._nextName(spec.label));
+      var targets = Engine._channelTargets(type, channels);
+      for (var i = 0; i < targets.length; i++) Engine._wire(effectorId, "id", clonerId, targets[i]);
+      return { effectorId: effectorId, comboIds: [] };
     }
   };
 

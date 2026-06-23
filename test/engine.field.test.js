@@ -28,3 +28,16 @@ test("field type sets the falloff shapeType (Linear/Box)", () => {
   assert.equal(api.get(Engine.addField("linear", effectorId, clonerId).fieldId, "shapeType"), "Linear");
   assert.equal(api.get(Engine.addField("box", effectorId, clonerId).fieldId, "shapeType"), "Rectangle");
 });
+
+test("addField on a non-effector layer warns and wires nothing", () => {
+  global.api = makeApi();
+  global.cavalry = makeCavalry();
+  Engine.resetWarnings();
+  const api = global.api;
+  const notEffector = api.create("basicShape", "Box");
+  const res = Engine.addField("spherical", notEffector, null);
+  assert.ok(res.fieldId);
+  assert.deepEqual(res.extraIds, []);
+  assert.ok(Engine.warnings.some(function (w) { return w.indexOf("unknown effector") >= 0; }));
+  assert.equal(api.getInConnection(notEffector, "falloffs.0.id"), "");
+});

@@ -91,7 +91,11 @@
       if (fSpec.configure) fSpec.configure(api, fieldId);
 
       var eType = Engine._effectorTypeOf(api.getLayerType(effectorId));
-      var slot = eType ? TM().effectors[eType].fieldSlot : null;
+      if (!eType) {
+        Engine.warnings.push("addField: unknown effector " + effectorId);
+        return { fieldId: fieldId, extraIds: [] };
+      }
+      var slot = TM().effectors[eType].fieldSlot;
       if (slot) {
         Engine._wire(fieldId, "id", effectorId, slot);
         return { fieldId: fieldId, extraIds: [] };

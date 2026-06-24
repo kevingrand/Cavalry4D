@@ -126,6 +126,19 @@
     var hl2 = E.highlightWords([], [{ word: "red", color: "#EA4336" }]);
     check("highlight auto-stubs a sample text", hl2.stubbed === true && api.getLayerType(hl2.textId) === "textShape");
 
+    // grid fx: shape swap grid (two aligned grids, region clipped to the mask)
+    var ssR = api.create("basicShape", "SelftestRegion");
+    var ssB = api.create("basicShape", "SelftestBase");
+    var ssM = api.create("basicShape", "SelftestSwapMask");
+    var ss = E.buildGridPreset("shapeSwap", [ssR, ssB, ssM]);
+    check("shapeSwap builds two duplicators", api.getLayerType(ss.baseDupId) === "duplicator" && api.getLayerType(ss.regionDupId) === "duplicator");
+    check("shapeSwap clones base into base grid", drives(ssB, ss.baseDupId));
+    check("shapeSwap clones region into region grid", drives(ssR, ss.regionDupId));
+    check("shapeSwap clips region grid to mask", drives(ssM, ss.regionDupId));
+    check("shapeSwap hides the mask", api.get(ss.maskId, "hidden") === true);
+    var ss2 = E.buildGridPreset("shapeSwap", []);
+    check("shapeSwap auto-stubs all three roles", ss2.stubbed.baseShape && ss2.stubbed.regionShape && ss2.stubbed.mask);
+
     return { passed: passed, failed: failed, warnings: E.warnings.slice(), details: details };
   };
 });

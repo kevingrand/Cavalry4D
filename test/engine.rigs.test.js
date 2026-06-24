@@ -58,7 +58,17 @@ test("Image rig with no shape selected invents a default cell shape", () => {
   const rig = Engine.buildRig("imageSize", [img]);
   assert.ok(Object.keys(api._layers).length > before);
   assert.equal(api.getLayerType(rig.shapeId), "basicShape");
+  // Generator name MUST carry the "Shape" suffix — bare "rectangle" silently polygons.
+  assert.equal(api.getCurrentGeneratorType(rig.shapeId, "generator"), "rectangleShape");
   assert.ok(drives(api, rig.shapeId, rig.clonerId, "shapes"));
+});
+
+test("Image → Density invents an ellipse cell (Shape-suffixed generator)", () => {
+  const api = setup();
+  const img = api.create("footageShape", "photo.png");
+  const rig = Engine.buildRig("imageDensity", [img]);
+  assert.equal(api.getLayerType(rig.shapeId), "basicShape");
+  assert.equal(api.getCurrentGeneratorType(rig.shapeId, "generator"), "ellipseShape");
 });
 
 test("buildRig rejects an unknown rig key", () => {

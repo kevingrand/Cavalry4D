@@ -38,6 +38,10 @@ function makeApi(opts) {
     getCurrentGeneratorType: function (id, attr) { return layers[id] ? layers[id].attrs["__gen:" + attr] : undefined; },
     addDynamic: function (id, attr) { if (layers[id]) layers[id].attrs[attr] = layers[id].attrs[attr] || 0; },
     parent: function (child, parent) { if (layers[child]) layers[child].parent = parent; },
+    // reorder(a, b) moves `a` BELOW `b` in the stack (per Cavalry docs). The mock
+    // doesn't model draw order, but records calls so tests can assert direction.
+    _reorders: [],
+    reorder: function (a, b) { api._reorders.push([a, b]); },
     getParent: function (id) { return layers[id] ? layers[id].parent : null; },
     connect: function (from, fromAttr, to, toAttr) {
       if (!isListInput(toAttr)) removeInput(to, toAttr);   // single inputs are last-wins

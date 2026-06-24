@@ -10,7 +10,7 @@
   function TM() { return root.MG.TypeMap; }
   function layerOf(s) { return s ? String(s).split(".")[0] : ""; }
 
-  var COLORS = { clone: "#8BC34A", effector: "#9D7CD8", field: "#4A90D9", preset: "#E0934A", rig: "#3AAFA9", text: "#C77DBB" };
+  var COLORS = { clone: "#8BC34A", effector: "#9D7CD8", field: "#4A90D9", preset: "#E0934A", rig: "#3AAFA9", text: "#C77DBB", grid: "#5BB39A" };
 
   var Panel = {
     _buttons: [],
@@ -35,6 +35,37 @@
       b._action = action;
       Panel._buttons.push(b);
       return b;
+    },
+
+    // Build a section of "preset with prerequisites" rows (a Build button + a live
+    // requirements checklist label beneath it) for a registry. Shared by Text
+    // Presets and Grid FX — both are generic over a spec's `requires`.
+    _buildReqSection: function (rootLayout, presets, actionPrefix, color) {
+      var rows = [];
+      for (var t = 0; t < presets.length; t++) {
+        (function (spec) {
+          var inner = new ui.VLayout();
+          inner.setSpaceBetween(2);
+          var btn = Panel._actionButton(spec.label, actionPrefix + ":" + spec.key, color);
+          btn.setToolTip(spec.hint);
+          inner.add(btn);
+          var reqLabel = new ui.Label("");
+          inner.add(reqLabel);
+          var cont = new ui.Container();
+          cont.setLayout(inner);
+          rootLayout.add(cont);
+          rows.push({ key: spec.key, spec: spec, label: reqLabel });
+        })(presets[t]);
+      }
+      return rows;
+    },
+
+    // Look up a requires-preset spec across both registries (text + grid).
+    _presetSpec: function (key) {
+      var lists = [TM().textPresets || [], TM().gridPresets || []];
+      for (var l = 0; l < lists.length; l++)
+        for (var i = 0; i < lists[l].length; i++) if (lists[l][i].key === key) return lists[l][i];
+      return null;
     },
 
     _resolveCloner: function (selId) {
@@ -119,23 +150,14 @@
       // a live requirements checklist (re-validated on every selection change) that
       // tells the user what to prepare before clicking — and what will be stubbed.
       rootLayout.addSeparator("Text Presets");
-      Panel._textPresetRows = [];
-      var tps = TM().textPresets || [];
-      for (var t = 0; t < tps.length; t++) {
-        (function (spec) {
-          var inner = new ui.VLayout();
-          inner.setSpaceBetween(2);
-          var btn = Panel._actionButton(spec.label, "text:" + spec.key, COLORS.text);
-          btn.setToolTip(spec.hint);
-          inner.add(btn);
-          var reqLabel = new ui.Label("");
-          inner.add(reqLabel);
-          var cont = new ui.Container();
-          cont.setLayout(inner);
-          rootLayout.add(cont);
-          Panel._textPresetRows.push({ key: spec.key, spec: spec, label: reqLabel });
-        })(tps[t]);
-      }
+      Panel._textPresetRows = Panel._buildReqSection(rootLayout, TM().textPresets || [], "text", COLORS.text);
+
+      // Grid FX: same prerequisite/checklist machinery, building grid effects.
+      rootLayout.addSeparator("Grid FX");
+      Panel._gridPresetRows = Panel._buildReqSection(rootLayout, TM().gridPresets || [], "grid", COLORS.grid);
+
+      // unified list the checklist refresh iterates over (both groups)
+      Panel._reqRows = Panel._textPresetRows.concat(Panel._gridPresetRows);
 
       // Add-ons: effects that aren't role-stack presets. Highlight Words recolours
       // (and optionally bolds) specific words in a text shape via native, editable
@@ -307,9 +329,10 @@
     // selection and render one ✓ / • / ✗ line per requirement under its button.
     //   ✓ satisfied (names the layer)   • will be auto-stubbed   ✗ hard-required
     _refreshTextPresets: function (selectionIds) {
-      if (!Panel._textPresetRows || !Panel.engine || typeof Panel.engine.validateRequires !== "function") return;
-      for (var i = 0; i < Panel._textPresetRows.length; i++) {
-        var row = Panel._textPresetRows[i];
+      var rows = Panel._reqRows || Panel._textPresetRows;
+      if (!rows || !Panel.engine || typeof Panel.engine.validateRequires !== "function") return;
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
         var v = Panel.engine.validateRequires(row.spec, selectionIds || []);
         var lines = [];
         for (var r = 0; r < v.length; r++) {
@@ -467,10 +490,10 @@
               Panel._modal.showMessage("No image selected — drop your image into the new Image Sampler's 'Image' slot to drive the clones.");
             }
             return;
-          } else if (kind === "text") {
-            var tres = Panel.engine.buildTextPreset(name, sel);
+          } else if (kind === "text" || kind === "grid") {
+            var tres = (kind === "grid") ? Panel.engine.buildGridPreset(name, sel) : Panel.engine.buildTextPreset(name, sel);
             if (tres && tres.ok === false) {
-              var spec = Panel._textPresetSpec(name), msgs = [];
+              var spec = Panel._presetSpec(name), msgs = [];
               for (var mi = 0; mi < tres.missing.length; mi++) {
                 var rq = Panel._findReq(spec, tres.missing[mi]);
                 if (rq) msgs.push(rq.missing);
@@ -483,6 +506,8 @@
               var notes = [];
               if (tres.stubbed.fillIn) notes.push("placeholder fill-in text");
               if (tres.stubbed.fills) notes.push("placeholder fill shapes");
+              if (tres.stubbed.baseShape) notes.push("a placeholder base shape");
+              if (tres.stubbed.regionShape) notes.push("a placeholder region shape");
               if (tres.stubbed.mask) notes.push("a placeholder mask");
               if (notes.length) Panel._modal.showMessage("Added " + notes.join(" and ") + ". Replace it with your own content, then animate the mask shape to animate the effect.");
             }

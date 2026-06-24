@@ -29,7 +29,7 @@ The user opens example scenes one at a time. We **don't** clone a whole scene as
 ES5-only in `src/` (Cavalry's engine is ES5: `var`, function expressions, string concat — no arrow/let/const/template/class). Tests run in Node and may use modern JS.
 
 ```
-src/typemap.js   data registries (cloners, effectors, presets, textPresets, rigs, fields) — declarative
+src/typemap.js   data registries (cloners, effectors, presets, textPresets, gridPresets, highlights, rigs, fields) — declarative
 src/engine.js    UI-free imperative core: create layers, wire, validate/resolve prerequisites, build presets
 src/selection.js introspect the current selection (describe())
 src/panel.js      ui.* widget tree + refresh; renders the requirements checklist generically
@@ -109,7 +109,7 @@ Per requirement: `id`, `label` (shown in the checklist with ✓/•/✗), `check
 
 | Topic | Fact |
 |---|---|
-| **Shape generators** | `api.setGenerator(id,"generator",name)` needs the **"Shape" suffix**: `"ellipseShape"`, `"rectangleShape"`, `"starShape"`, `"polygonShape"`. **Bare `"ellipse"`/`"rectangle"` silently fall back to a polygon (pentagon).** (`_buildImageCloner` still uses bare names — known bug.) |
+| **Shape generators** | `api.setGenerator(id,"generator",name)` needs the **"Shape" suffix**: `"ellipseShape"`, `"rectangleShape"`, `"starShape"`, `"polygonShape"`. **Bare `"ellipse"`/`"rectangle"` silently fall back to a polygon (pentagon).** |
 | **Distribution generators** | Duplicator distributions are a *different* family, set by `*Distribution` names (`gridDistribution`, `circleDistribution`, `randomDistribution`, `shapeEdgeDistribution`, `pathDistribution`) — **no** "Shape" suffix. Each has different attrs (grid: `count{x,y}`+`size{x,y}`; circle: scalar `count`+`radius`). |
 | **Fill color** | `material.materialColor` (accepts a hex string `"#RRGGBB"`, stored ARGB 0-255). Not `fill.color`. |
 | **List inputs** | `shapes`, `masks`, `deformers`, `falloffs`, `materialBehaviours`, `styleBehaviours` are **lists**. Connect to the **bare list name** (`"shapes"`, `"deformers"`, `"masks"`) — Cavalry auto-appends `.0/.1/.2`. **Do NOT** use `addArrayIndex`+`"shapes.N"` (fails for shapes). |
@@ -118,12 +118,18 @@ Per requirement: `id`, `label` (shown in the checklist with ✓/•/✗), `check
 | **Reveal mechanism** | per-glyph opacity mask: `subMesh`(`levels{3,3}`,`levelMode 3`,`indexMode 0`,`opacityMode 0`,`useIndex true`) parented to the body; `isWithin`(`invert true`, `inputShape←mask`); `valueArray`[`array.0`=100 visible, `array.1`=0 hidden]. Wire: mask→`isWithin.inputShape`, isWithin→`valueArray.arrayIndex`, valueArray→`subMesh.shapeOpacity`, subMesh→`body.deformers`. |
 | **Highlight words** | recolour/bold matched words on **any** textShape via native behaviours. Colour = `applyTextMaterial`(`regex "(word)"` capture group, `mode 0`, `indexMode 2`, `material.materialColor` **accepts a hex string**) → `text.materialBehaviours`. Bold = `applyTypeface`(same `regex`/`mode`/`indexMode`, `font {font,style}` — keep the body family, change weight) → `text.styleBehaviours`. Both are LIST inputs (auto-indexed). Treat the user's word as **literal**: regex-escape it before wrapping in `(...)`. |
 | **ColorChip widget** | `ui.ColorChip` ctor takes **0 args** and uses **`setColor(hex)`/`getColor()`** — **NOT** `setValue`/`getValue` (those don't exist on it; live-confirmed, contradicting the generic widget doc). `getColor()` returns lowercase hex. `LineEdit` is fine: `setText`/`getText`/`setPlaceholder`. |
+| **Per-copy duplicator `shapeId`** | A duplicator with multiple shapes **cycles them by copy index** (a checkerboard in 2D). Driving `shapeId` per-copy by a region is **NOT** a simple kernel: `isWithin→numberRange→shapeId`, a `value` effector + falloff, `useIndex`, and parenting the effector all yield the same uniform/checker result from scratch (the value reaches `shapeId` as a constant). The BLOXEL template makes it per-copy by computing every copy's position through ~10 helper nodes. **Reliable region shape-swap = two aligned grids + a mask clip (next row), not `shapeId`.** |
+| **Region shape-swap (two-grid)** | Two grid duplicators with the **same** `count`/`size`/`position`: a base shape tiled everywhere + a region shape tiled in the same grid but **clipped to the mask** (`mask → regionDup.masks`) and drawn **on top**. Since `api.reorder(a,b)` moves `a` BELOW `b` (docs), put the BASE under the region: **`api.reorder(baseDup, regionDup)`** — else the base cells hide the swap. Inside the mask you see the region shape; outside, the base. Render-confirmed against both orderings. |
+| **Falloff vs isWithin attrs** | A falloff's `id` does **not** feed `numberRange.value` (falloffs drive only via an effector's `falloffs` list). A shape-type falloff's input is **`inputShapes`** (plural list); `isWithin`'s is **`inputShape`** (singular). |
+| **Boolean (hole) layer** | `boolean` has only `{clippingShapes, id}` — no `booleanType` enum. Subtract by connecting the hole shape → `boolean.clippingShapes` (auto-indexed list). *Making the clipped hole render transparent still needs discovery — the square-with-hole stub is deferred.* |
 | **Clip a layer to a shape** | `mask → layer.masks` = alpha clip to the mask outline (clean, per-pixel; great for clipping a duplicator). |
 | **Fit text to a shape** | textShape `position` anchors at the box **top-left** (y-up): center on a mask via `{cx - w/2, cy + h/2}`. Set `autoWidth/autoHeight=false`, `textBoxSize={w,h}`, `horizontalAlignment/verticalAlignment=1` (centre/middle). Fill density ∝ amount of text. |
 | **Stack order** | `api.getCompLayers(true|false)` index **0 = TOP** of stack (reorder-confirmed; `false` includes nested). `api.reorder(a,b)` = move `a` UNDER `b`. **Don't infer stack from creation order** — programmatic insertion position is ambiguous; `reorder` explicitly in tests. |
 | **Bounding box** | `api.getBoundingBox(id, worldSpace=true)` → `{x,y,width,height,centre{x,y},left,right,top,bottom}`. |
 | **Isolated render** | `api.createComp(name)` → `api.setActiveComp(comp)` → build → `api.renderPNGFrame(path, scalePercent)` → restore `setActiveComp(orig)` → `deleteLayer(comp)`. Read the PNG to eyeball a result without polluting the user's scene. |
 | **Verify every wire** | `Engine._wire(from,fromAttr,to,toAttr,force)` connects then reads back from the **source** side (`getOutConnections`) and pushes to `Engine.warnings` on silent failure. Assert `warnings.length === 0`. List slots auto-index, so "it connected" ≠ "it drives" — always read back. |
+| **`isWithin` evaluates at the duplicator CENTER, not per-copy** | Connecting `isWithin → numberRange → shapeId` gives a uniform value for ALL copies — even with `sortDistribution` + `useIndex:true`. The BLOXEL scene's per-copy swap requires `shapePosition.x/y` to be explicitly driven with each copy's world position (via a `getVector`/`value2`/`round` animation chain). For a static grid, the reliable path is the **two-grid mask-clip** (see "Region shape-swap" row). |
+| **`sortDistribution` nesting** | `api.setGenerator(dup,"generator","sortDistribution")` + `api.setGenerator(dup,"generator.input","gridDistribution")` gives a nested distribution. Inner grid attrs are accessed with the `generator.input.*` prefix: `generator.input.count`, `generator.input.size`, `generator.input.distributionMode`. |
 
 ---
 
@@ -132,6 +138,7 @@ Per requirement: `id`, `label` (shown in the checklist with ✓/•/✗), `check
 - **Reveal Text in Shape** (`kind:"revealInShape"`, `_buildRevealInShape`): the reveal mechanism above + `_fitTextToMask` + hide mask. Roles: top = fill-in, bottom = mask.
 - **Fill-in & Repeat** (`kind:"fillRepeat"`, `_buildFillRepeat`): grid `duplicator` of the fill shape(s) sized to the mask bbox, clipped via `mask→duplicator.masks`, mask hidden. Roles: `fills` (multi, all top layers) + `mask` (bottom). Use for sparse content (stars/squares) that should pack a shape.
 - **Highlight Words** (Add-on, `Engine.highlightWords`/`boldWords`): the panel's first **parameterised** feature — not a `requires`-checklist preset. A new "Add-ons" panel section with `highlights.maxRows` word+colour rows (`LineEdit`+`ColorChip`, "Add Highlight" reveals the next), two buttons (colour, optional bold). Resolves the target text from the selection or auto-stubs a sample (`highlights.sampleText` contains the default words so a first click is visibly correct). Registry: `typemap.highlights`. The colour/bold mechanism is the "Highlight words" facts-table row.
+- **Shape Swap Grid** (Grid FX, `kind:"shapeSwap"`, `_buildShapeSwap`): distilled from the **BLOXEL** template. Two aligned grids — base shape everywhere + region shape clipped to a mask — per the "Region shape-swap" facts row. Registry: `typemap.gridPresets` (same `requires`/`assign:"stack"`/checklist machinery as `textPresets`). Roles top→bottom: region shape, base shape, mask. The `requires`/checklist/stub system is now **generic over both registries**: `panel._buildReqSection` renders any group; `buildGridPreset` mirrors `buildTextPreset`. **Discovery lesson:** the obvious per-copy `shapeId` swap is a dead end (see facts table) — the two-grid mask-clip was the reliable path, found by render-probing from scratch.
 
 The first two are thin (discovery was the work; ~30-line builders) because the prerequisite/stub/checklist machinery is shared. Highlight Words shows the **parameterised** path: pre-build a fixed set of rows (Cavalry builds layout once — reveal hidden rows instead of adding them) and collect their values at build time.
 
@@ -139,8 +146,9 @@ The first two are thin (discovery was the work; ~30-line builders) because the p
 
 ## Deferred / backlog
 
-- **Image-cloner generator bug:** `_buildImageCloner` uses bare `"ellipse"`/`"rectangle"` → silently polygons. Fix to `"ellipseShape"`/`"rectangleShape"`.
 - **Highlight Words — possible follow-ups:** raw-regex toggle (currently literal-only); a per-row "remove"/reset; expose the bold weight (`Black` vs `Bold`) as a choice. None requested yet.
+- **Highlight Words — possible follow-ups:** raw-regex toggle (currently literal-only); a per-row "remove"/reset; expose the bold weight (`Black` vs `Bold`) as a choice. None requested yet.
+- **Image-cloner generator bug:** `_buildImageCloner` uses bare `"ellipse"`/`"rectangle"` → silently polygons. Fix to `"ellipseShape"`/`"rectangleShape"`.
 
 ---
 

@@ -230,6 +230,31 @@
     sampleText: "Make the red word and the blue word stand out."
   };
 
+  // Grid FX: presets that build a grid (duplicator) effect from the selection,
+  // using the SAME declarative requires/checklist/stub machinery as textPresets
+  // (assign:"stack", check/stub per role). Distilled from the "BLOXEL" template.
+  //
+  // Shape Swap Grid: a base shape tiled in a grid everywhere, plus a second shape
+  // tiled in the SAME grid but CLIPPED to a mask region (mask -> duplicator.masks,
+  // the verified Fill-Repeat alpha clip) and drawn on top. Inside the region you
+  // see the region shape; outside, the base shape. Move/animate the mask to move
+  // the region. (The template drove a per-copy shapeId swap through ~10 helper
+  // nodes computing each copy's position; the two-grid mask-clip gets the same
+  // look from VERIFIED primitives and is reorder/clip-correct — confirmed by
+  // isolated-comp render before encoding.)
+  var gridPresets = [
+    { key: "shapeSwap", label: "Shape Swap Grid", kind: "shapeSwap", assign: "stack",
+      hint: "Roles follow the layer stack: TOP = region shape (shown inside the mask), MIDDLE = base shape (tiled everywhere), BOTTOM = mask (the region). Select all three, or fewer and the rest are auto-created.",
+      requires: [
+        { id: "regionShape", label: "Region shape (top)", check: "shape", stub: "swapCell",
+          missing: "Put the shape to show inside the region on top." },
+        { id: "baseShape",   label: "Base shape (middle)", check: "shape", stub: "baseDot",
+          missing: "Put the shape tiled everywhere in the middle." },
+        { id: "mask",        label: "Mask region (bottom)", check: "shape", stub: "regionMask",
+          missing: "Put a shape as the region on the bottom." }
+      ] }
+  ];
+
   // Smart Rigs: build a tedious native-Cavalry setup from the current selection,
   // branching on what kinds of layers are selected. The build logic lives in the
   // Engine (it's imperative); this registry is the metadata for the panel.
@@ -251,5 +276,5 @@
     random:    { layer: "falloff", label: "Random Field",    configure: function (api, id) { api.set(id, { "shapeType": SHAPE.circle, "useProbability": true }); } }
   };
 
-  return { XFORM: XFORM, paths: paths, cloners: cloners, distributionOrder: distributionOrder, effectors: effectors, presets: presets, textPresets: textPresets, highlights: highlights, rigs: rigs, fields: fields };
+  return { XFORM: XFORM, paths: paths, cloners: cloners, distributionOrder: distributionOrder, effectors: effectors, presets: presets, textPresets: textPresets, gridPresets: gridPresets, highlights: highlights, rigs: rigs, fields: fields };
 });

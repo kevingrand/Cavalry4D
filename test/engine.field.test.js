@@ -19,14 +19,14 @@ test("a field on a Plain effector wires into its falloff slot", () => {
   const { api, effectorId, clonerId } = setup("plain");
   const { fieldId } = Engine.addField("spherical", effectorId, clonerId);
   assert.equal(api.getLayerType(fieldId), "falloff");
-  assert.equal(api.get(fieldId, "shapeType"), "Circle");
+  assert.equal(api.get(fieldId, "shapeType"), 0); // Circle = enum int 0
   assert.equal(api.getInConnection(effectorId, "falloffs"), fieldId + ".id"); // connect to the falloffs list
 });
 
-test("field type sets the falloff shapeType (Linear/Box)", () => {
+test("field type sets the falloff shapeType enum (Linear=2/Rectangle=1)", () => {
   const { api, effectorId, clonerId } = setup("step");
-  assert.equal(api.get(Engine.addField("linear", effectorId, clonerId).fieldId, "shapeType"), "Linear");
-  assert.equal(api.get(Engine.addField("box", effectorId, clonerId).fieldId, "shapeType"), "Rectangle");
+  assert.equal(api.get(Engine.addField("linear", effectorId, clonerId).fieldId, "shapeType"), 2);
+  assert.equal(api.get(Engine.addField("box", effectorId, clonerId).fieldId, "shapeType"), 1);
 });
 
 test("addField on a non-effector layer warns and wires nothing", () => {

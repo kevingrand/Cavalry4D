@@ -15,13 +15,22 @@
     for (var t in fx) if (fx.hasOwnProperty(t) && fx[t].layer === layerType) return t;
     return null;
   }
+  // Map a distribution generator type (e.g. "circleDistribution") back to the
+  // friendly cloner mode ("radial"). Returns the raw type if unknown.
+  function modeOfGenerator(genType) {
+    if (!genType) return null;
+    var cl = TM().cloners;
+    for (var m in cl) if (cl.hasOwnProperty(m) && cl[m].distribution === genType) return m;
+    return genType;
+  }
+  // shapeType is an enum int: Circle=0, Rectangle=1, Linear=2.
   function fieldTypeOf(fieldId) {
     var st = api.get(fieldId, "shapeType");
-    if (api.get(fieldId, "useProbability") && st === "Circle") return "random";
-    if (st === "Linear") return "linear";
-    if (st === "Rectangle") return "box";
-    if (st === "Circle") return "spherical";
-    return "linear";
+    if (api.get(fieldId, "useProbability") && st === 0) return "random";
+    if (st === 2) return "linear";
+    if (st === 1) return "box";
+    if (st === 0) return "spherical";
+    return "spherical";
   }
 
   var Selection = {
@@ -30,7 +39,7 @@
       var type = api.getLayerType(layerId);
 
       if (type === "duplicator") {
-        var mode = api.getCurrentGeneratorType(layerId, TM().paths.generatorAttr) || null;
+        var mode = modeOfGenerator(api.getCurrentGeneratorType(layerId, TM().paths.generatorAttr));
         var seen = {};
         var effectors = [];
         var allAttrs = [];
@@ -57,7 +66,7 @@
       }
 
       if (effectorTypeOf(type)) return { role: "effector", mode: null, effectors: [] };
-      if (type === "falloff") return { role: "field", mode: null, effectors: [] };
+      if (type === "falloff") return { role: "field", mode: fieldTypeOf(layerId), effectors: [] };
       return { role: "other", mode: null, effectors: [] };
     }
   };

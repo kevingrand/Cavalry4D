@@ -14,7 +14,14 @@ function spyEngine() {
     createCloner: (...a) => (calls.push(["createCloner", ...a]), { clonerId: "duplicator#1" }),
     addEffector: (...a) => (calls.push(["addEffector", ...a]), { effectorId: "random#1", extraIds: [] }),
     addField: (...a) => (calls.push(["addField", ...a]), { fieldId: "falloff#1", extraIds: [] }),
-    setEffectorChannels: (...a) => calls.push(["setEffectorChannels", ...a])
+    setEffectorChannels: (...a) => calls.push(["setEffectorChannels", ...a]),
+    applyPreset: (...a) => (calls.push(["applyPreset", ...a]), { clonerId: "duplicator#1", effectorId: "random#1", fieldId: null }),
+    switchDistribution: (...a) => (calls.push(["switchDistribution", ...a]), { clonerId: a[0], mode: a[1] }),
+    setPathShape: (...a) => (calls.push(["setPathShape", ...a]), { ok: true }),
+    setEffectorStrength: (...a) => (calls.push(["setEffectorStrength", ...a]), true),
+    setEffectorAmount: (...a) => (calls.push(["setEffectorAmount", ...a]), true),
+    setEffectorMuted: (...a) => (calls.push(["setEffectorMuted", ...a]), true),
+    isEffectorMuted: () => false
   };
 }
 

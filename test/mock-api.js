@@ -13,6 +13,12 @@ function makeApi(opts) {
     }
   }
 
+  // List inputs accept many connections (Cavalry auto-indexes shapes.0, shapes.1,
+  // masks.0, deformers.0, ...); single inputs are last-wins. The mock mirrors this
+  // so wiring several shapes/masks into one cloner all register.
+  var LIST_INPUTS = { shapes: 1, masks: 1, deformers: 1, falloffs: 1, materialBehaviours: 1, styleBehaviours: 1 };
+  function isListInput(toAttr) { return !!LIST_INPUTS[String(toAttr).split(".")[0]]; }
+
   var api = {
     _layers: layers,
     _conns: conns,
@@ -34,7 +40,7 @@ function makeApi(opts) {
     parent: function (child, parent) { if (layers[child]) layers[child].parent = parent; },
     getParent: function (id) { return layers[id] ? layers[id].parent : null; },
     connect: function (from, fromAttr, to, toAttr) {
-      removeInput(to, toAttr);
+      if (!isListInput(toAttr)) removeInput(to, toAttr);   // single inputs are last-wins
       conns.push({ from: from, fromAttr: fromAttr, to: to, toAttr: toAttr });
     },
     disconnect: function (from, fromAttr, to, toAttr) {
@@ -64,6 +70,11 @@ function makeApi(opts) {
       var r = []; for (var i = 0; i < conns.length; i++) if (conns[i].from === id) r.push(conns[i].fromAttr); return r;
     },
     getLayerType: function (id) { return layers[id] ? layers[id].type : ""; },
+    isShape: function (id) {
+      var t = layers[id] ? layers[id].type : "";
+      var shapes = { basicShape: 1, group: 1, textShape: 1, footageShape: 1, imageToShapes: 1, duplicator: 1, "null": 1 };
+      return !!shapes[t];
+    },
     getNiceName: function (id) { return layers[id] ? layers[id].name : ""; },
     rename: function (id, name) { if (layers[id]) layers[id].name = name; },
     layerExists: function (id) { return !!layers[id]; },
@@ -71,8 +82,29 @@ function makeApi(opts) {
     setSelection: function (ids) { selection = ids.slice(); },
     select: function (ids) { selection = ids.slice(); },
     getAttributes: function (id) { return layers[id] ? Object.keys(layers[id].attrs) : []; },
+    getBoundingBox: function (id, worldSpace) {
+      // Return a predictable 100×80 box so configure functions get a real bb in tests.
+      return { x: -50, y: -40, width: 100, height: 80,
+               centre: { x: 0, y: 0 }, left: -50, right: 50, top: 40, bottom: -40 };
+    },
     getActiveComp: function () { return "comp#1"; },
-    getFrame: function () { return 0; }
+    getFrame: function () { return 0; },
+    // Stack order. In real Cavalry getCompLayers index 0 is the TOP of the stack
+    // and sequentially-created layers list in creation order (first = top); the
+    // mock mirrors that with insertion order.
+    getCompLayers: function (isTopLevel) { return Object.keys(layers); },
+    getAllSceneLayers: function () { return Object.keys(layers); },
+    // List attributes (e.g. a Value Array's "array") start at 1 entry; addArrayIndex
+    // grows them. Faithful enough that engine code can populate array.0/array.1.
+    addArrayIndex: function (id, attr) {
+      if (!layers[id]) return 0;
+      var key = "__count:" + attr;
+      layers[id].attrs[key] = (layers[id].attrs[key] || 1) + 1;
+      return layers[id].attrs[key] - 1;
+    },
+    getArrayCount: function (id, attr) {
+      return layers[id] ? (layers[id].attrs["__count:" + attr] || 1) : 0;
+    }
   };
   return api;
 }
@@ -95,8 +127,13 @@ function makeUi() {
   ["setToolTip","setFontSize","setTextColor","setBackgroundColor","setImage","setImageSize",
    "addStretch","addSeparator","addSpacing","setSpaceBetween","setMargins","setPlaceholder",
    "setMin","setMax","setType","setStep","setMinimumHeight","setAlignment","setSelectionMode",
-   "showSearchBar","setRowsDeletable","setRowsRenamable","setRowsReorderable","clear","setDrawStroke"]
+   "showSearchBar","setRowsDeletable","setRowsRenamable","setRowsReorderable","clear","setDrawStroke",
+   "setRange","setSize","setFixedWidth","setFixedHeight","setMaximumHeight","setEnabled","setContentsMargins","setLayout"]
     .forEach(function (m) { p[m] = function () { return this; }; });
+  p.setHidden = function (s) { this.hidden = !!s; return this; };
+  p.isHidden = function () { return !!this.hidden; };
+  // test helper: set a value and fire onValueChanged like a real drag/select
+  p.change = function (v) { this.value = v; if (typeof this.onValueChanged === "function") this.onValueChanged(); return this; };
   p.add = function () { for (var i = 0; i < arguments.length; i++) this.children.push(arguments[i]); return this; };
   p.setText = function (t) { this.text = t; return this; };
   p.getText = function () { return this.text || ""; };
@@ -112,7 +149,7 @@ function makeUi() {
   p.showConfirmation = function () { return true; };
 
   var ui = { _widgets: widgets, _messages: [] };
-  ["Button","Label","Checkbox","NumericField","DropDown","ColorChip","List","VLayout",
+  ["Button","Label","Checkbox","NumericField","LineEdit","MultiLineEdit","DropDown","ColorChip","List","VLayout",
    "HLayout","FlowLayout","ScrollView","TabView","Modal","Draw","ImageButton","Container","Slider"]
     .forEach(function (kind) { ui[kind] = function () { return new W(kind, Array.prototype.slice.call(arguments)); }; });
   ui.getThemeColor = function () { return "#888888"; };

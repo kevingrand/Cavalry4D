@@ -153,8 +153,14 @@
       Panel._textPresetRows = Panel._buildReqSection(rootLayout, TM().textPresets || [], "text", COLORS.text);
 
       // Grid FX: same prerequisite/checklist machinery, building grid effects.
-      rootLayout.addSeparator("Grid FX");
-      Panel._gridPresetRows = Panel._buildReqSection(rootLayout, TM().gridPresets || [], "grid", COLORS.grid);
+      // Rendered only when a grid preset is registered (currently none — Shape
+      // Swap Grid was shelved; see typemap.js). The section + checklist machinery
+      // are generic, so adding a registry entry revives this automatically.
+      Panel._gridPresetRows = [];
+      if ((TM().gridPresets || []).length) {
+        rootLayout.addSeparator("Grid FX");
+        Panel._gridPresetRows = Panel._buildReqSection(rootLayout, TM().gridPresets, "grid", COLORS.grid);
+      }
 
       // unified list the checklist refresh iterates over (both groups)
       Panel._reqRows = Panel._textPresetRows.concat(Panel._gridPresetRows);

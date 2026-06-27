@@ -492,25 +492,6 @@
         }
         return cells;
       }
-      // ---- Grid FX stubs (Shape Swap) ----
-      if (name === "baseDot") {
-        var dot = Engine._create("basicShape", Engine._nextName("Base Dot"));
-        api.setGenerator(dot, "generator", "ellipseShape");
-        api.set(dot, { "generator.radius": { x: 14, y: 14 }, "material.materialColor": "#4285F4" });
-        return dot;
-      }
-      if (name === "swapCell") {
-        var sq = Engine._create("basicShape", Engine._nextName("Region Cell"));
-        api.setGenerator(sq, "generator", "rectangleShape");
-        api.set(sq, { "generator.dimensions": { x: 34, y: 34 }, "material.materialColor": "#34A853" });
-        return sq;
-      }
-      if (name === "regionMask") {
-        var rm = Engine._create("basicShape", Engine._nextName("Region Mask"));
-        api.setGenerator(rm, "generator", "ellipseShape");
-        api.set(rm, { "generator.radius": { x: 160, y: 160 } });
-        return rm;
-      }
       throw new Error("unknown stub: " + name);
     },
 
@@ -695,71 +676,18 @@
       return { ok: true, textId: tgt.textId, typefaceIds: made, stubbed: tgt.stubbed };
     },
 
-    // ---- Grid FX presets (Shape Swap) -----------------------------------
-    // Same resolve/gate/dispatch shape as buildTextPreset, over TM().gridPresets.
+    // ---- Grid FX presets ------------------------------------------------
+    // Generic resolve/gate/dispatch shell, mirroring buildTextPreset over
+    // TM().gridPresets. The registry is currently empty (Shape Swap Grid was
+    // shelved — see typemap.js), so this is dormant scaffolding kept ready for a
+    // correct grid preset. Add a `kind` dispatch here when one lands.
     buildGridPreset: function (key, selectionIds) {
       var spec = null, ps = TM().gridPresets || [];
       for (var i = 0; i < ps.length; i++) if (ps[i].key === key) spec = ps[i];
       if (!spec) throw new Error("unknown grid preset: " + key);
       var res = Engine.resolveRequires(spec, selectionIds);
       if (res.missing.length) return { ok: false, missing: res.missing };
-      if (spec.kind === "shapeSwap") return Engine._buildShapeSwap(res);
       throw new Error("grid preset kind not implemented: " + spec.kind);
-    },
-
-    // A grid duplicator of `shapeId`, sized so cells are spaced by the shape's
-    // bounding box and the grid covers `field` px centred at (cx,cy).
-    _gridOf: function (shapeId, cw, ch, nx, ny, cx, cy, niceName) {
-      var dup = Engine._create("duplicator", Engine._nextName(niceName));
-      api.setGenerator(dup, "generator", "gridDistribution");
-      Engine._wire(shapeId, "id", dup, "shapes");
-      api.set(dup, {
-        "generator.count": { x: nx, y: ny },
-        "generator.distributionMode": 1,            // Step: size = centre-to-centre spacing
-        "generator.size": { x: cw, y: ch },
-        "position": { x: cx, y: cy }
-      });
-      return dup;
-    },
-
-    // Shape Swap Grid: base shape tiled everywhere + region shape tiled in the
-    // SAME grid but CLIPPED to the mask (mask -> duplicator.masks) and drawn on
-    // top. Inside the mask region you see the region shape; outside, the base.
-    _buildShapeSwap: function (res) {
-      var baseShape = res.values.baseShape;
-      var regionShape = res.values.regionShape;
-      var maskId = res.values.mask;
-
-      // region to cover: the mask bbox, generously expanded so the grid fills a
-      // field around it; centred on the mask.
-      var bb = null;
-      try { bb = api.getBoundingBox(maskId, true); } catch (e) {}
-      var mw = (bb && bb.width) ? bb.width : 320;
-      var mh = (bb && bb.height) ? bb.height : 320;
-      var cx = (bb && bb.centre) ? bb.centre.x : 0;
-      var cy = (bb && bb.centre) ? bb.centre.y : 0;
-      var fieldW = mw * 2.4, fieldH = mh * 2.4;
-
-      // cell spacing from the base shape's size (fallback 60)
-      var cw = 60, ch = 60;
-      try { var cbb = api.getBoundingBox(baseShape, false);
-            if (cbb && cbb.width > 0) { cw = Math.ceil(cbb.width) + 24; ch = Math.ceil(cbb.height) + 24; } } catch (e) {}
-      var nx = Math.max(5, Math.ceil(fieldW / cw) + 1);
-      var ny = Math.max(5, Math.ceil(fieldH / ch) + 1);
-
-      var baseDup = Engine._gridOf(baseShape, cw, ch, nx, ny, cx, cy, "Base Grid");
-      var regionDup = Engine._gridOf(regionShape, cw, ch, nx, ny, cx, cy, "Region Grid");
-
-      // region grid must draw ON TOP of the base grid so the region cells cover
-      // the base cells inside the mask (else the swap is hidden behind the base).
-      // Per the docs, api.reorder(a, b) moves `a` BELOW `b`, so put the BASE grid
-      // under the region grid. (Render-verified against both orderings.)
-      if (typeof api.reorder === "function") api.reorder(baseDup, regionDup);
-      Engine._wire(maskId, "id", regionDup, "masks");
-      api.set(maskId, { "hidden": true });   // the mask is a clip stencil, not drawn
-
-      return { ok: true, clonerId: regionDup, baseDupId: baseDup, regionDupId: regionDup,
-               maskId: maskId, baseShapeId: baseShape, regionShapeId: regionShape, stubbed: res.stubbed };
     }
   };
 

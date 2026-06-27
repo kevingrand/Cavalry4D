@@ -29,6 +29,32 @@ function makeApi(opts) {
       return id;
     },
     deleteLayer: function (id) { delete layers[id]; },
+    // Duplicate: real api.duplicate returns void and selects the new copy. The
+    // mock clones the layer (type + attrs) and records the pair so tests can
+    // assert a duplicate was made.
+    _duplicates: [],
+    duplicate: function (id, withInputConnections) {
+      if (!layers[id]) return;
+      var nid = api.create(layers[id].type, layers[id].name + " copy");
+      for (var k in layers[id].attrs) if (layers[id].attrs.hasOwnProperty(k)) layers[nid].attrs[k] = layers[id].attrs[k];
+      layers[nid].parent = layers[id].parent;
+      api._duplicates.push([id, nid]);
+    },
+    // preCompose: bundle the current selection into a new comp reference, return it.
+    _precomposed: [],
+    preCompose: function (name) {
+      var id = api.create("compReference", name || "Pre-Comp");
+      api._precomposed.push(selection.slice());
+      return id;
+    },
+    centrePivot: function (id, doCentroid) { if (layers[id]) layers[id].attrs.__centrePivot = true; },
+    // SuperTypes: coarse classifier fallback. Only the broad "Shape" bucket is
+    // needed by Selection.classify (concrete-type checks decide everything else).
+    getSuperTypes: function (id) {
+      var t = layers[id] ? layers[id].type : "";
+      var shapeish = { basicShape: 1, textShape: 1, duplicator: 1, group: 1, "null": 1, footageShape: 1, imageToShapes: 1 };
+      return shapeish[t] ? ["Shape"] : [];
+    },
     set: function (id, obj) {
       var l = layers[id]; if (!l) return;
       for (var k in obj) if (obj.hasOwnProperty(k)) l.attrs[k] = obj[k];

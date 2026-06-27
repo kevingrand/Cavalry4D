@@ -5,7 +5,7 @@
   if (typeof module !== "undefined" && module.exports) module.exports = mod;
 })(typeof globalThis !== "undefined" ? globalThis : this, function (root) {
   "use strict";
-  if (typeof require !== "undefined") { try { require("./typemap"); require("./engine"); } catch (e) {} }
+  if (typeof require !== "undefined") { try { require("./typemap"); require("./engine"); require("./selection"); } catch (e) {} }
 
   return function selftest() {
     var E = root.MG.Engine;
@@ -125,6 +125,20 @@
     check("bold drives the text", drives(bw.typefaceIds[0], hlText));
     var hl2 = E.highlightWords([], [{ word: "red", color: "#EA4336" }]);
     check("highlight auto-stubs a sample text", hl2.stubbed === true && api.getLayerType(hl2.textId) === "textShape");
+
+    // Quick Actions (contextual) — route a few keys end to end.
+    var Sel = root.MG.Selection;
+    var qaShape = api.create("basicShape", "QA Shape");
+    check("classify(shape) = shape", Sel.classify(qaShape) === "shape");
+    var qaClone = E.runContextAction("cloneGrid", [qaShape]);
+    check("cloneGrid quick action makes a duplicator", api.getLayerType(qaClone.select) === "duplicator");
+    var qaEff = E.runContextAction("addRandom", [qaClone.select]);
+    check("addRandom quick action drives the cloner", drives(qaEff.select, qaClone.select));
+    var qaText = api.create("textShape", "QA Text");
+    check("classify(text) = text", Sel.classify(qaText) === "text");
+    var qaGroup = E.runContextAction("group", [qaShape, qaText]);
+    check("group quick action parents selection into a group",
+      api.getLayerType(qaGroup.select) === "group" && api.getParent(qaText) === qaGroup.select);
 
     return { passed: passed, failed: failed, warnings: E.warnings.slice(), details: details };
   };

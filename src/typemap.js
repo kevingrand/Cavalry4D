@@ -256,6 +256,54 @@
       hint: "Select an image and a shape. Builds a scatter where image brightness controls clone placement." }
   ];
 
+  // Quick Actions (contextual): the ~5 most relevant one-click actions for the
+  // CURRENT selection, keyed by a category that Selection.classify() derives from
+  // the selected layer's type. Each action key maps to an executor in
+  // Engine.runContextAction(). Generic verbs (duplicate/group/precompose/
+  // centerPivot/delete) wrap documented api.* calls; type-specific ones route to
+  // existing Engine features (createCloner, addEffector, buildTextPreset, ...),
+  // so this section is a smart front-door, NOT a parallel implementation. The
+  // panel builds a fixed pool of buttons once and relabels/rewires them per
+  // selection (Cavalry lays widgets out once) — see Panel._refreshQuickActions.
+  var contextActions = {
+    // category -> ordered action keys (top = most relevant). Trimmed to ~5.
+    // "multiShapes" = 2+ shape/text/image layers (stack presets make sense);
+    // "multi" = a mixed multi-selection (only generic verbs are safe).
+    byCategory: {
+      shape:       ["cloneGrid", "scatter", "duplicate", "group", "centerPivot"],
+      text:        ["revealInShape", "highlightWords", "fillRepeat", "cloneGrid", "duplicate"],
+      cloner:      ["addRandom", "addStep", "addNoise", "duplicate", "group"],
+      effector:    ["toggleMute", "addField", "duplicate", "delete"],
+      field:       ["toggleProbability", "duplicate", "delete"],
+      image:       ["imageSize", "imageDensity", "cloneGrid", "duplicate"],
+      multiShapes: ["cloneAll", "revealInShape", "fillRepeat", "group", "precompose"],
+      multi:       ["group", "precompose", "duplicate", "delete"],
+      other:       ["duplicate", "group", "precompose", "delete"]
+    },
+    // action metadata (label + button tooltip). The executor lives in the Engine.
+    defs: {
+      duplicate:         { label: "Duplicate",           hint: "Duplicate the selected layer(s) with their input connections." },
+      group:             { label: "Group",               hint: "Put the selected layer(s) into a new Group." },
+      precompose:        { label: "Pre-Compose",         hint: "Move the selection into a new Composition (pre-comp) referenced here." },
+      centerPivot:       { label: "Center Pivot",        hint: "Move the pivot to the centre of the layer's bounding box." },
+      delete:            { label: "Delete",              hint: "Delete the selected layer(s)." },
+      cloneGrid:         { label: "Clone → Grid",        hint: "Make a grid Duplicator of the selected shape(s)." },
+      cloneAll:          { label: "Clone All → Grid",    hint: "Make one grid Duplicator that clones all the selected shapes." },
+      scatter:           { label: "Scatter",             hint: "Grid Cloner + Random effector (position & rotation) in one click." },
+      addRandom:         { label: "Add Random Effector", hint: "Add a Random effector driving this Cloner." },
+      addStep:           { label: "Add Step Effector",   hint: "Add a Step (stagger) effector driving this Cloner." },
+      addNoise:          { label: "Add Noise Effector",  hint: "Add a Noise effector driving this Cloner." },
+      addField:          { label: "Add Field",           hint: "Add a Spherical field to this effector." },
+      toggleMute:        { label: "Mute / Unmute",       hint: "Toggle this effector between 0 strength and its previous value." },
+      toggleProbability: { label: "Toggle Probability",  hint: "Toggle this field's Probability (seeded) mode on/off." },
+      revealInShape:     { label: "Reveal in Shape",     hint: "Reveal text inside a mask shape (top = fill-in, bottom = mask)." },
+      highlightWords:    { label: "Highlight Words",     hint: "Recolour sample words in the selected text (editable behaviours)." },
+      fillRepeat:        { label: "Fill & Repeat",       hint: "Repeat the top shape(s) in a grid clipped to the bottom mask." },
+      imageSize:         { label: "Image → Size",        hint: "Grid sized by image brightness (select an image + a shape)." },
+      imageDensity:      { label: "Image → Density",     hint: "Scatter placed by image brightness (select an image + a shape)." }
+    }
+  };
+
   // shapeType is an ENUM INT (verified live): Circle=0, Rectangle=1, Linear=2,
   // Sweep=3, Shape=4. Setting it to a STRING silently leaves it at 0 — that was
   // a real bug where every field rendered as Circle.
@@ -267,5 +315,5 @@
     random:    { layer: "falloff", label: "Random Field",    configure: function (api, id) { api.set(id, { "shapeType": SHAPE.circle, "useProbability": true }); } }
   };
 
-  return { XFORM: XFORM, paths: paths, cloners: cloners, distributionOrder: distributionOrder, effectors: effectors, presets: presets, textPresets: textPresets, gridPresets: gridPresets, highlights: highlights, rigs: rigs, fields: fields };
+  return { XFORM: XFORM, paths: paths, cloners: cloners, distributionOrder: distributionOrder, effectors: effectors, presets: presets, textPresets: textPresets, gridPresets: gridPresets, highlights: highlights, rigs: rigs, fields: fields, contextActions: contextActions };
 });

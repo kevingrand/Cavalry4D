@@ -10,13 +10,14 @@
   function TM() { return root.MG.TypeMap; }
   function layerOf(s) { return s ? String(s).split(".")[0] : ""; }
 
-  var COLORS = { clone: "#8BC34A", effector: "#9D7CD8", field: "#4A90D9", preset: "#E0934A", rig: "#3AAFA9", text: "#C77DBB", grid: "#5BB39A" };
+  var COLORS = { clone: "#8BC34A", effector: "#9D7CD8", field: "#4A90D9", preset: "#E0934A", rig: "#3AAFA9", text: "#C77DBB", grid: "#5BB39A", action: "#D9694A" };
 
   var Panel = {
     _buttons: [],
     engine: null,
     _modal: null,
     _suspend: false,     // guard: programmatic widget updates must not fire engine calls
+    _QA_MAX: 6,          // size of the Quick Actions button pool (max 5 per category + headroom)
 
     // A hideable labelled control row. Wrapped in ui.Container because only
     // widgets support setHidden — bare layouts do not (verified live).
@@ -109,6 +110,29 @@
       var rootLayout = new ui.VLayout();
       rootLayout.setSpaceBetween(6);
       rootLayout.setMargins(6, 6, 6, 6);
+
+      // Quick Actions (contextual): the ~5 most relevant one-click actions for the
+      // CURRENT selection, at the top of the panel. A FIXED pool of buttons is
+      // built once (Cavalry lays widgets out a single time); refresh() relabels /
+      // rewires / shows-hides them per selection. Each button carries a _qaKey its
+      // onClick dispatches — same shape as _wireButtons, but rebindable.
+      rootLayout.addSeparator("Quick Actions");
+      Panel._qaLabel = new ui.Label("Select a layer to see quick actions.");
+      rootLayout.add(Panel._qaLabel);
+      var qaRow = new ui.FlowLayout(4, 4);
+      Panel._qaButtons = [];
+      for (var qi = 0; qi < Panel._QA_MAX; qi++) {
+        var qb = new ui.Button("");
+        qb.setBackgroundColor(COLORS.action);
+        qb._qaKey = null;
+        (function (button) {
+          button.onClick = function () { if (button._qaKey) Panel._runQuickAction(button._qaKey); };
+        })(qb);
+        if (typeof qb.setHidden === "function") qb.setHidden(true);
+        qaRow.add(qb);
+        Panel._qaButtons.push(qb);
+      }
+      rootLayout.add(qaRow);
 
       // Clone (FlowLayout so the 7 modes wrap instead of overflowing one row)
       rootLayout.addSeparator("Clone");
@@ -327,8 +351,80 @@
       Panel._wireButtons();
       Panel._showContext(null);          // hide context controls initially
       Panel._refreshPathButton(null, null);
-      Panel._refreshTextPresets((typeof api !== "undefined" && api.getSelection) ? api.getSelection() : []);
+      var initialSel = (typeof api !== "undefined" && api.getSelection) ? api.getSelection() : [];
+      Panel._refreshTextPresets(initialSel);
+      Panel._refreshQuickActions(initialSel);
       return rootLayout;
+    },
+
+    // Re-render the Quick Actions pool for the current selection: classify the
+    // selection, look up its action keys, then relabel/rewire/show the pool
+    // (hiding the unused tail). Pure-UI, fires no engine calls.
+    _refreshQuickActions: function (selectionIds) {
+      if (!Panel._qaButtons) return;
+      var sel = selectionIds || [];
+      var info = root.MG.Selection.classifySelection(sel);
+      var CA = TM().contextActions || { byCategory: {}, defs: {} };
+      var keys = (info.category && CA.byCategory[info.category]) ? CA.byCategory[info.category] : [];
+      Panel._qaLabel.setText(Panel._qaLabelText(info));
+      for (var i = 0; i < Panel._qaButtons.length; i++) {
+        var btn = Panel._qaButtons[i];
+        if (i < keys.length) {
+          var def = CA.defs[keys[i]] || { label: keys[i], hint: "" };
+          btn._qaKey = keys[i];
+          btn.setText(def.label);
+          if (typeof btn.setToolTip === "function") btn.setToolTip(def.hint);
+          if (typeof btn.setHidden === "function") btn.setHidden(false);
+        } else {
+          btn._qaKey = null;
+          if (typeof btn.setHidden === "function") btn.setHidden(true);
+        }
+      }
+    },
+
+    _qaLabelText: function (info) {
+      if (!info || info.category === "none") return "Select a layer to see quick actions.";
+      var names = { shape: "Shape", text: "Text", cloner: "Cloner", effector: "Effector",
+                    field: "Field", image: "Image", multiShapes: "Shapes", multi: "Mixed selection", other: "Layer" };
+      var nm = names[info.category] || info.category;
+      return (info.count > 1 ? (nm + " · " + info.count + " layers") : nm) + " — quick actions:";
+    },
+
+    // Dispatch a Quick Action: run it via the Engine, then select+refresh and
+    // surface any modal note (missing requirement / stub / no-image), reusing the
+    // same messaging the static buttons use.
+    _runQuickAction: function (key) {
+      var sel = api.getSelection();
+      var res = Panel.engine.runContextAction(key, sel);
+      if (res && res.ok === false) {
+        if (res.missing && res.presetKey) {
+          var spec = Panel._presetSpec(res.presetKey), msgs = [];
+          for (var mi = 0; mi < res.missing.length; mi++) {
+            var rq = Panel._findReq(spec, res.missing[mi]);
+            if (rq) msgs.push(rq.missing);
+          }
+          Panel._modal.showMessage(msgs.join("\n") || "Missing a required input.");
+        } else {
+          Panel._modal.showMessage(res.message || "Couldn't run that action.");
+        }
+        return;
+      }
+      if (res && ("select" in res)) Panel._selectAndRefresh(res.select);
+      else if (typeof Panel.refresh === "function") Panel.refresh(api.getSelection());
+      if (res && res.stubbed) {
+        if (res.stubbed.highlight) {
+          Panel._modal.showMessage("No text selected — built a sample with words highlighted. Replace it with your own text; the highlights follow the words.");
+        } else {
+          var notes = [];
+          if (res.stubbed.fillIn) notes.push("placeholder fill-in text");
+          if (res.stubbed.fills) notes.push("placeholder fill shapes");
+          if (res.stubbed.mask) notes.push("a placeholder mask");
+          if (notes.length) Panel._modal.showMessage("Added " + notes.join(" and ") + ". Replace it with your own content, then animate the mask shape to animate the effect.");
+        }
+      }
+      if (res && res.imageUsed === false) {
+        Panel._modal.showMessage("No image selected — drop your image into the new Image Sampler's 'Image' slot to drive the clones.");
+      }
     },
 
     // Live requirements checklist: re-validate each Text Preset against the current
@@ -409,6 +505,7 @@
 
     refresh: function (selectionIds) {
       Panel._refreshTextPresets(selectionIds);
+      Panel._refreshQuickActions(selectionIds);
       var id = selectionIds && selectionIds[0];
       if (!id) { Panel._selectionInfo.setText("No selection"); Panel._showContext(null); Panel._refreshPathButton(null, null); return; }
       var d = root.MG.Selection.describe(id);

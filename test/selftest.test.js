@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const { makeApi, makeCavalry } = require("./mock-api.js");
 require("../src/typemap.js");
 require("../src/engine.js");
+require("../src/selection.js");
 const selftest = require("../src/selftest.js");
 
 test("selftest passes every recipe against the mock api with no warnings", () => {

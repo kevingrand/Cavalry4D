@@ -68,6 +68,44 @@
       if (effectorTypeOf(type)) return { role: "effector", mode: null, effectors: [] };
       if (type === "falloff") return { role: "field", mode: fieldTypeOf(layerId), effectors: [] };
       return { role: "other", mode: null, effectors: [] };
+    },
+
+    // Classify a single layer into a Quick-Actions category (see
+    // TM().contextActions). Concrete-type checks decide first; getSuperTypes is
+    // only a coarse fallback for layers we don't recognise (its exact strings are
+    // a verify-live item, so nothing critical depends on them).
+    classify: function (layerId) {
+      if (!layerId || !api.layerExists(layerId)) return "other";
+      var type = api.getLayerType(layerId);
+      if (type === "duplicator") return "cloner";
+      if (effectorTypeOf(type)) return "effector";
+      if (type === "falloff") return "field";
+      if (type === "footageShape" || type === "imageToShapes") return "image";
+      if (type === "textShape") return "text";
+      if (typeof api.isShape === "function" && api.isShape(layerId)) return "shape";
+      if (typeof api.getSuperTypes === "function") {
+        var st = api.getSuperTypes(layerId) || [];
+        for (var i = 0; i < st.length; i++) {
+          var s = String(st[i]).toLowerCase();
+          if (s === "shape") return "shape";
+        }
+      }
+      return "other";
+    },
+
+    // Classify the whole selection. One layer -> its category. 2+ layers ->
+    // "multiShapes" when every layer is a shape/text/image (so stack presets such
+    // as Reveal/Fill apply), otherwise "multi" (only generic verbs are safe).
+    classifySelection: function (selectionIds) {
+      var ids = selectionIds || [];
+      if (!ids.length) return { category: "none", count: 0 };
+      if (ids.length === 1) return { category: Selection.classify(ids[0]), count: 1 };
+      var allShapes = true;
+      for (var i = 0; i < ids.length; i++) {
+        var c = Selection.classify(ids[i]);
+        if (c !== "shape" && c !== "text" && c !== "image") { allShapes = false; break; }
+      }
+      return { category: allShapes ? "multiShapes" : "multi", count: ids.length, allShapes: allShapes };
     }
   };
 

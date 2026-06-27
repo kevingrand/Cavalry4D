@@ -688,6 +688,108 @@
       var res = Engine.resolveRequires(spec, selectionIds);
       if (res.missing.length) return { ok: false, missing: res.missing };
       throw new Error("grid preset kind not implemented: " + spec.kind);
+    },
+
+    // ---- Quick Actions (contextual) -------------------------------------
+    // Run a contextual action key (see TM().contextActions) against the current
+    // selection. Generic verbs wrap documented api.* calls; type-specific ones
+    // reuse the Engine features above. Always returns a normalised result the
+    // panel can act on uniformly:
+    //   { ok, select?, message?, missing?, presetKey?, stubbed?, imageUsed? }
+    // ok:false means the panel should show `message` (or resolve `missing` via
+    // the preset's requirement text). `select` (when present) is the layer to
+    // select+refresh afterwards; absent means "just refresh".
+
+    // From a selected layer, find the duplicator to act on: itself if it's a
+    // cloner, else the duplicator an effector drives.
+    _resolveClonerId: function (id) {
+      if (!id) return null;
+      if (api.getLayerType(id) === "duplicator") return id;
+      if (Engine._effectorTypeOf(api.getLayerType(id))) {
+        var outs = api.getOutConnections(id, "id");
+        for (var i = 0; i < outs.length; i++) {
+          var L = layerOf(outs[i]);
+          if (api.getLayerType(L) === "duplicator") return L;
+        }
+      }
+      return null;
+    },
+
+    runContextAction: function (key, selectionIds) {
+      selectionIds = (selectionIds || []).slice();
+      var first = selectionIds[0] || null, i;
+      switch (key) {
+        case "duplicate":
+          if (!selectionIds.length) return { ok: false, message: "Select a layer to duplicate." };
+          for (i = 0; i < selectionIds.length; i++) api.duplicate(selectionIds[i], true);
+          return { ok: true };                       // Cavalry selects the new copy itself
+        case "group": {
+          if (!selectionIds.length) return { ok: false, message: "Select layer(s) to group." };
+          var g = Engine._create("group", Engine._nextName("Group"));
+          for (i = 0; i < selectionIds.length; i++) api.parent(selectionIds[i], g);
+          return { ok: true, select: g };
+        }
+        case "precompose": {
+          if (!selectionIds.length) return { ok: false, message: "Select layer(s) to pre-compose." };
+          api.select(selectionIds);
+          var pc = api.preCompose("Pre-Comp");
+          return { ok: true, select: pc };
+        }
+        case "centerPivot":
+          if (!selectionIds.length) return { ok: false, message: "Select a layer." };
+          for (i = 0; i < selectionIds.length; i++) if (typeof api.centrePivot === "function") api.centrePivot(selectionIds[i], true);
+          return { ok: true, select: first };
+        case "delete":
+          if (!selectionIds.length) return { ok: false, message: "Select layer(s) to delete." };
+          for (i = 0; i < selectionIds.length; i++) api.deleteLayer(selectionIds[i]);
+          return { ok: true, select: null };
+        case "cloneGrid":
+        case "cloneAll":
+          if (!selectionIds.length) return { ok: false, message: "Select a shape to clone." };
+          return { ok: true, select: Engine.createCloner("grid", selectionIds).clonerId };
+        case "scatter":
+          if (!selectionIds.length) return { ok: false, message: "Select a shape to scatter." };
+          return { ok: true, select: Engine.applyPreset("scatter", selectionIds).clonerId };
+        case "addRandom":
+        case "addStep":
+        case "addNoise": {
+          var effMap = { addRandom: "random", addStep: "step", addNoise: "noise" };
+          var cloner = Engine._resolveClonerId(first);
+          if (!cloner) return { ok: false, message: "Select a Cloner first." };
+          return { ok: true, select: Engine.addEffector(effMap[key], cloner).effectorId };
+        }
+        case "addField": {
+          if (!first || !Engine._effectorTypeOf(api.getLayerType(first))) return { ok: false, message: "Select an Effector to add a Field." };
+          var added = Engine.addField("spherical", first, Engine._resolveClonerId(first));
+          if (!added.fieldId) return { ok: false, message: "This effector type doesn't support a Field." };
+          return { ok: true, select: added.fieldId };
+        }
+        case "toggleMute":
+          if (!first) return { ok: false, message: "Select an Effector." };
+          Engine.setEffectorMuted(first, !Engine.isEffectorMuted(first));
+          return { ok: true, select: first };
+        case "toggleProbability":
+          if (!first) return { ok: false, message: "Select a Field." };
+          Engine.setFieldProbability(first, !api.get(first, "useProbability"));
+          return { ok: true, select: first };
+        case "revealInShape":
+        case "fillRepeat": {
+          var r = Engine.buildTextPreset(key, selectionIds);
+          if (r && r.ok === false) return { ok: false, missing: r.missing, presetKey: key };
+          return { ok: true, select: r.bodyId || r.clonerId, stubbed: r.stubbed };
+        }
+        case "highlightWords": {
+          var hr = Engine.highlightWords(selectionIds, TM().highlights.defaultRows);
+          return { ok: true, select: hr.textId, stubbed: hr.stubbed ? { highlight: true } : null };
+        }
+        case "imageSize":
+        case "imageDensity": {
+          var rig = Engine.buildRig(key, selectionIds);
+          return { ok: true, select: rig.clonerId, imageUsed: rig.imageUsed };
+        }
+        default:
+          throw new Error("unknown context action: " + key);
+      }
     }
   };
 

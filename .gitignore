@@ -1,2 +1,7 @@
 node_modules/
 dist/
+
+# Throwaway render-probe outputs (the probe_*.js scripts are kept; their PNG/JSON
+# renders are regenerated on demand and shouldn't be tracked)
+tools/*.png
+tools/*.json
